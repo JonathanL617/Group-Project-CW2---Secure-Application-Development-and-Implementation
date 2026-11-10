@@ -1,0 +1,88 @@
+<?php
+    session_start(); // Start session to access session variables
+    
+    require_once __DIR__ . "/../config/conn.php";
+    require_once __DIR__ . "/../model/Superadmin.php";
+
+    class SuperAdminController {
+        private $model;
+        private $conn;
+
+        public function __construct($conn){
+            $this->conn = $conn;
+            $this->model = new SuperAdminModel($conn);
+        }
+
+        public function getStats(){
+            echo json_encode($this->model->getStats());
+        }
+
+        public function getAdmins() {
+            echo json_encode($this->model->getAllAdmin());
+        }
+
+        public function createAdmin(){
+            $data = $_POST;
+            $data['registered_by'] = $_SESSION['super_admin_id'] ?? '';
+
+            echo json_encode($this->model->createAdmin($data));
+        }
+
+        public function generateAdminId() {
+            $result = $this->conn->query("SELECT admin_id FROM admin ORDER BY admin_id DESC LIMIT 1");
+            if ($result && $result->num_rows > 0) {
+                $lastID = $result->fetch_assoc()['admin_id'];
+                $num = (int)substr($lastID, 1) + 1;
+                $newID = 'A' . str_pad($num, 3, '0', STR_PAD_LEFT);
+            } else {
+                $newID = 'A002'; // Start from A002 since A001 already exists
+            }
+            echo json_encode(['id' => $newID]);
+        }
+
+        public function deleteAdmin(){
+            $input = json_decode(file_get_contents('php://input'), true);
+            $success = $this->model->deleteAdmin($input['adminId']);
+
+            echo json_encode(['success' => $success]);
+        }
+
+        public function toggleStatus() {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $success = $this->model->toggleStatus($input['adminId'], $input['status']);
+            echo json_encode(['success' => $success]);
+        }
+
+        public function getRequests() {
+            echo json_encode($this->model->getPendingStaff());
+        }
+
+        public function handleRequest() {
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (empty($input['staffId']) || empty($input['status'])) {
+                echo json_encode(['success' => false, 'message' => 'Missing parameters']);
+                return;
+            }
+            
+            $success = $this->model->updateStaffStatus($input['staffId'], $input['status']);
+            echo json_encode(['success' => $success]);
+        }
+    }
+
+    //router
+    $action = $_GET['action'] ?? '';
+
+    $controller = new SuperAdminController($conn);
+
+    match ($action) {
+        'getStats'         => $controller->getStats(),
+        'getAdmin'         => $controller->getAdmins(),
+        'create'           => $controller->createAdmin(),
+        'generateAdminId'  => $controller->generateAdminId(),
+        'toggleStatus'     => $controller->toggleStatus(),
+        'delete'           => $controller->deleteAdmin(),
+        'getRequests'      => $controller->getRequests(),
+        'handleRequest'    => $controller->handleRequest(),
+        default            => $controller->getStats()
+    };
+?>
