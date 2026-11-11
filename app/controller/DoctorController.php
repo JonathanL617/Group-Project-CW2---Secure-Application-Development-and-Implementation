@@ -1,12 +1,24 @@
+
 <?php
 session_start();
 
-require_once '../model/Doctor.php';
-require_once '../config/conn.php'; // Make sure this is included
-//require_once '../model/dashboard.php';
+header('Content-Type: application/json; charset=utf-8');
 
-$loggedInUser = $_SESSION['staff_id'] ?? 'D001';
-//$loggedInUser = document.body.dataset.staffId;
+// Identify this as an API request
+$isApiRequest = true;
+
+// Check session timeout
+require_once __DIR__ . '/../config/session_timeout.php';
+
+// Check doctor authorization
+require_once __DIR__ . '/../config/authorization.php';
+
+requireRole(['doctor']);
+
+require_once __DIR__ . '/../config/conn.php';
+require_once __DIR__ . '/../model/Doctor.php';
+
+$loggedInUser = $_SESSION['staff_id'] ?? '';
 
 $model = new DoctorModel($conn);
 
@@ -46,7 +58,7 @@ switch ($action) {
         
     case 'createPrescription':
         $patientId = $input['patient_id'] ?? '';
-        $staffId = $input['staff_id'] ?? $loggedInUser; // Use provided staff_id or fallback to session
+        $staffId = $loggedInUser;
         $medicines = $input['medicines'] ?? [];
 
         if (empty($patientId) || empty($medicines)) {
@@ -65,7 +77,7 @@ switch ($action) {
         
     case 'getPrescriptionsByStaff':
         $search = $_GET['search'] ?? '';
-        $staffId = $_GET['staff_id'] ?? $loggedInUser; // Allow staff_id from request or use session
+        $staffId = $loggedInUser;
         
         if (empty($staffId)) {
             echo json_encode(['success' => false, 'msg' => 'Staff ID is required']);

@@ -1,9 +1,26 @@
+
 <?php
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+header("Content-Type: application/json; charset=utf-8");
+
+// Identify this as an API request
+$isApiRequest = true;
+
+// Check session timeout
+require_once __DIR__ . '/../config/session_timeout.php';
+
+// Only Doctor can access
+require_once __DIR__ . '/../config/authorization.php';
+
+requireRole(['doctor']);
+
 require_once __DIR__ . '/../config/conn.php';
 require_once __DIR__ . '/../model/Doctor2.php';
+
 
 header("Content-Type: application/json; charset=utf-8");
 

@@ -1,23 +1,24 @@
 
-<?php 
-    session_start();
-    require_once '../config/config.php';
-    
-    
-    if(!isset($_SESSION['user_id'])){
-        header('Location:' . BASE_URL . '/app/view/login_page.php');
-        exit();
-    }
+<?php
+
+session_start();
+
+require_once '../config/config.php';
+
+// Normal dashboard request (not an API request)
+$isApiRequest = false;
+
+// Check session timeout
+require_once __DIR__ . '/../config/session_timeout.php';
+
+// Check login
+if (!isset($_SESSION['user_id'])) {
+    header('Location: ' . BASE_URL . '/app/view/login_page.php');
+    exit();
+}
     
    $userRole = $_SESSION['user_role']; // Default to admin if not set for testing
    $staff_id = $_SESSION['staff_id'] ?? null;
-
-    //$userRole = $_SESSION['user_role'] ?? 'pharmacist'; // Default to pharmacist if not set for testing
-    //$staff_id = $_SESSION['staff_id'] ?? 'P001'; // Use session or fallback
-
-    //$userRole = $_SESSION['user_role'] ?? 'doctor'; // Default to doctor if not set for testing
-    //$staff_id = $_SESSION['staff_id'] ?? 'D001'; // Use session or fallback
-    
 
     $defaultPages = [
         'superadmin' => 'manage_accounts',
@@ -35,12 +36,14 @@
 
     $page = isset($_GET['page']) ? $_GET['page'] : ($defaultPages[$userRole] ?? 'stock_management');
 
-    // Validate page and redirect if invalid
-    if (!isset($validPages[$userRole]) || !in_array($page, $validPages[$userRole])) {
-        $page = $defaultPages[$userRole] ?? 'stock_management';
-        header("Location: dashboard.php?page=" . $page);
-        exit();
-    }
+
+// Validate page access based on user role
+if (!isset($validPages[$userRole]) || !in_array($page, $validPages[$userRole], true)) {
+    http_response_code(403);
+    require_once __DIR__ . '/403.php';
+    exit();
+}
+
 
     $contentFile = __DIR__ . "/pages/{$userRole}/{$page}.php";
 ?>

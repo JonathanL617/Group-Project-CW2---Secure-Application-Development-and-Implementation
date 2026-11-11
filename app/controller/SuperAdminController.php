@@ -1,8 +1,23 @@
+
 <?php
-    session_start(); // Start session to access session variables
-    
-    require_once __DIR__ . "/../config/conn.php";
-    require_once __DIR__ . "/../model/Superadmin.php";
+session_start();
+
+header('Content-Type: application/json; charset=utf-8');
+
+// Identify this as an API request
+$isApiRequest = true;
+
+// Check session timeout
+require_once __DIR__ . '/../config/session_timeout.php';
+
+// Only Super Admin can access
+require_once __DIR__ . '/../config/authorization.php';
+
+requireRole(['superadmin']);
+
+require_once __DIR__ . '/../config/conn.php';
+require_once __DIR__ . '/../model/Superadmin.php';
+
 
     class SuperAdminController {
         private $model;
