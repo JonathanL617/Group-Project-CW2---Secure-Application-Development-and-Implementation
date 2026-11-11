@@ -54,17 +54,29 @@ INSERT INTO `admin` (`admin_id`, `admin_username`, `admin_dob`, `admin_password`
 -- Table structure for table `login_session`
 --
 
-DROP TABLE IF EXISTS `login_session`;
-CREATE TABLE IF NOT EXISTS `login_session` (
-  `session_id` int NOT NULL AUTO_INCREMENT,
-  `user_id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `role` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `login_time` datetime DEFAULT NULL,
-  `logout_time` datetime DEFAULT NULL,
-  `status` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  PRIMARY KEY (`session_id`),
-  KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `sessions` (
+    `session_id` INT AUTO_INCREMENT PRIMARY KEY,
+    `user_id` VARCHAR(50) NOT NULL,
+    `user_role` ENUM(
+        'superadmin',
+        'admin',
+        'pharmacist',
+        'doctor'
+    ) NOT NULL,
+    `login_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `last_activity` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `logout_time` DATETIME DEFAULT NULL,
+    `status` ENUM(
+        'Active',
+        'Expired',
+        'Logged Out'
+    ) NOT NULL DEFAULT 'Active',
+    INDEX idx_user_id (`user_id`),
+    INDEX idx_user_role (`user_role`),
+    INDEX idx_status (`status`),
+    INDEX idx_last_activity (`last_activity`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
 
@@ -326,11 +338,6 @@ ALTER TABLE `admin`
   ADD CONSTRAINT `admin_ibfk_1` FOREIGN KEY (`registered_by`) REFERENCES `super_admin` (`super_admin_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `login_session`
---
-ALTER TABLE `login_session`
-  ADD CONSTRAINT `login_session_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `admin` (`admin_id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
 --
 -- Constraints for table `order`
 --
