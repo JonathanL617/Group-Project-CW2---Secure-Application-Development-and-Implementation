@@ -8,7 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/conn.php';
 
-$timeoutDuration = 60; // 30 minutes
+$timeoutDuration = 30 *60; // 30 minutes
 
 // Only check authenticated users
 if (isset($_SESSION['user_id'])) {
