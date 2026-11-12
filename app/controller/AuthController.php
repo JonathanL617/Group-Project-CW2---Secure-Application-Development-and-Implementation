@@ -39,6 +39,8 @@ class AuthController {
             if (!$row || !isPasswordCorrect($password, $row['user_password'])) {
                 throw new Exception('Invalid email or password.');
             }
+            // Check whether staff must change their temporary password
+
 
             // Check account status
             if (strtolower($row['user_status']) !== 'active') {
@@ -48,11 +50,13 @@ class AuthController {
                     '. Please contact your administrator.'
                 );
             }
+            // Check whether newly approved staff must change their temporary password
+
 
             // Start session if not already started
-            if (session_status() === PHP_SESSION_NONE) {
-                session_start();
-            }
+         //   if (session_status() === PHP_SESSION_NONE) {
+          //      session_start();
+            //}
 
             // Prevent session fixation
             session_regenerate_id(true);
@@ -113,8 +117,22 @@ class AuthController {
             // Store database session ID
             $_SESSION['session_id'] = $stmt->insert_id;
             $_SESSION['last_activity'] = time();
+            // Check whether newly approved staff must change their temporary password
+                if (
+                    in_array($row['user_role'], ['doctor', 'pharmacist'], true) &&
+                    (int)($row['must_change_password'] ?? 0) === 1
+                ) {
+                    $_SESSION['must_change_password'] = true;
 
-            error_log(
+                    header(
+                        'Location: ' .
+                        BASE_URL .
+                        '/app/view/change_password.php'
+                    );
+
+                    exit();
+                }
+                            error_log(
                 "Session created. ID: " . $stmt->insert_id .
                 " | User: " . $userId
             );

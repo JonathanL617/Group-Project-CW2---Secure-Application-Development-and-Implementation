@@ -1,6 +1,7 @@
 
 <?php
-session_start();
+// Use the centralised secure session configuration
+require_once __DIR__ . '/../config/session_config.php';
 
 header('Content-Type: application/json; charset=utf-8');
 

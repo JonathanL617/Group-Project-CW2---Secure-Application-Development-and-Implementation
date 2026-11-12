@@ -1,7 +1,8 @@
 
 <?php
 
-session_start();
+// Use the centralised secure session configuration
+require_once __DIR__ . '/../config/session_config.php';
 
 require_once '../config/config.php';
 
@@ -16,9 +17,18 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: ' . BASE_URL . '/app/view/login_page.php');
     exit();
 }
-    
-   $userRole = $_SESSION['user_role']; // Default to admin if not set for testing
-   $staff_id = $_SESSION['staff_id'] ?? null;
+// Force newly approved staff to change their temporary password
+if (!empty($_SESSION['must_change_password'])) {
+    header(
+        'Location: ' . BASE_URL . '/app/view/change_password.php'
+    );
+    exit();
+}
+
+$userRole = $_SESSION['user_role'] ?? '';
+
+$staff_id = $_SESSION['staff_id'] ?? null;
+
 
     $defaultPages = [
         'superadmin' => 'manage_accounts',

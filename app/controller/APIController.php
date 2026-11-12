@@ -3,7 +3,7 @@
 // APIController.php
 // This file must output JSON only.
 
-session_start();
+require_once __DIR__ . '/../config/session_config.php';
 
 header("Content-Type: application/json; charset=utf-8");
 

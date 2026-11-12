@@ -1,9 +1,7 @@
 
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../config/session_config.php';
 
 header("Content-Type: application/json; charset=utf-8");
 

@@ -1,5 +1,5 @@
 <?php
-
+require_once __DIR__ . '/../controller/password_functions.php';
     class SuperAdminModel {
         private $conn;
 
@@ -17,7 +17,7 @@
             $inactive = $inactiveStmt->fetch_assoc()['inactive'];
 
             // Admins registered BY the current user (from session)
-            $superId = $_SESSION['super_admin_id'] ?? null;
+            $superId = $_SESSION['super_admin_id'] ;
 
             $registeredByCurrent = 0;
             if ($superId) {
@@ -79,7 +79,7 @@
             $chk->close();
 
             
-            $hash = password_hash($password, PASSWORD_ARGON2I);
+            $hash = hashPassword($password);
 
             $ins = $this->conn->prepare("
                 INSERT INTO admin 
@@ -158,20 +158,26 @@
                     approver_id = ? 
                 WHERE approved_user_id = ? AND status = 'pending'
             ");
-            $superAdminId = $_SESSION['super_admin_id'] ?? 'SA001';
+            $superAdminId = $_SESSION['super_admin_id'];
             $updateApproval->bind_param('sss', $status, $superAdminId, $staffId);
             $updateApproval->execute();
             $updateApproval->close();
 
             if ($status === 'approved') {
                 // Insert into staff table with active status
-                $defaultPass = password_hash('password123', PASSWORD_DEFAULT);
-                $activeStatus = 'active';
-                
+                $temporaryPassword = 'Testing1!';
+
+                $defaultPass = hashPassword($temporaryPassword);
+                                $activeStatus = 'active';
+                                
                 $insertStaff = $this->conn->prepare("
-                    INSERT INTO staff 
-                    (staff_id, staff_name, staff_dob, staff_specialization, staff_role, staff_phone, staff_email, staff_password, registered_by, staff_status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO staff
+                    (
+                        staff_id, staff_name, staff_dob, staff_specialization,
+                        staff_role, staff_phone, staff_email, staff_password,
+                        registered_by, staff_status, must_change_password
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 ");
                 
                 $insertStaff->bind_param('ssssssssss',
