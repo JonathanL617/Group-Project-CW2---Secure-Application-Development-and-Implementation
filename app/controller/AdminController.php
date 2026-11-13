@@ -1,7 +1,14 @@
 
 <?php
-session_start(); // Start session to access session variables
-require_once __DIR__ . "/../config/conn.php";
+// Secure API Error Handling
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+header('Content-Type: application/json; charset=utf-8');
+
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+session_start();
 
 class AdminController {
     private $conn;
@@ -10,40 +17,53 @@ class AdminController {
         $this->conn = $conn;
     }
 
+    // Get Staff
     public function getStaff() {
         $sql = "SELECT * FROM staff ORDER BY staff_id";
         $result = $this->conn->query($sql);
+
         echo json_encode($result->fetch_all(MYSQLI_ASSOC));
     }
 
+    // Get Patients
     public function getPatients() {
         $sql = "SELECT * FROM patient ORDER BY patient_id";
         $result = $this->conn->query($sql);
+
         echo json_encode($result->fetch_all(MYSQLI_ASSOC));
     }
 
+    // Get Staff By ID
     public function getStaffById($id) {
         $stmt = $this->conn->prepare(
             "SELECT * FROM staff WHERE staff_id = ?"
         );
+
         $stmt->bind_param('s', $id);
         $stmt->execute();
 
         $result = $stmt->get_result()->fetch_assoc();
+
         echo json_encode($result);
+        $stmt->close();
     }
 
+    // Get Patient By ID
     public function getPatientById($id) {
         $stmt = $this->conn->prepare(
             "SELECT * FROM patient WHERE patient_id = ?"
         );
+
         $stmt->bind_param('s', $id);
         $stmt->execute();
 
         $result = $stmt->get_result()->fetch_assoc();
+
         echo json_encode($result);
+        $stmt->close();
     }
 
+    // Update Staff
     public function updateStaff() {
         $data = json_decode(
             file_get_contents('php://input'),
@@ -75,7 +95,12 @@ class AdminController {
         );
 
         $success = $stmt->execute();
-        echo json_encode(['success' => $success]);
+
+        echo json_encode([
+            'success' => $success
+        ]);
+
+        $stmt->close();
     }
 
     // Generate Patient ID
@@ -87,12 +112,20 @@ class AdminController {
         if ($result && $result->num_rows > 0) {
             $lastID = $result->fetch_assoc()['patient_id'];
             $num = (int)substr($lastID, 1) + 1;
-            $newID = 'P' . str_pad($num, 3, '0', STR_PAD_LEFT);
+
+            $newID = 'P' . str_pad(
+                $num,
+                3,
+                '0',
+                STR_PAD_LEFT
+            );
         } else {
             $newID = 'P001';
         }
 
-        echo json_encode(['id' => $newID]);
+        echo json_encode([
+            'id' => $newID
+        ]);
     }
 
     // Register Patient - Server-Side Input Validation
@@ -111,7 +144,7 @@ class AdminController {
             return;
         }
 
-        // Validate patient ID
+        // Validate Patient ID
         if (!is_string($data['patient_id'] ?? null) ||
             trim($data['patient_id']) === '') {
 
@@ -122,7 +155,7 @@ class AdminController {
             return;
         }
 
-        // Validate patient name
+        // Validate Patient Name
         if (!is_string($data['patient_name'] ?? null) ||
             trim($data['patient_name']) === '') {
 
@@ -133,7 +166,7 @@ class AdminController {
             return;
         }
 
-        // Server-side email validation
+        // Server-Side Email Validation
         $email = $data['patient_email'] ?? null;
 
         if (!is_string($email) ||
@@ -148,7 +181,7 @@ class AdminController {
 
         $data['patient_email'] = trim($email);
 
-        // Insert patient information
+        // Insert Patient Information
         $stmt = $this->conn->prepare("
             INSERT INTO patient (
                 patient_id,
@@ -175,18 +208,30 @@ class AdminController {
             $data['registered_by']
         );
 
-        if ($stmt->execute()) {
+        // Secure Error Handling
+        try {
+            $stmt->execute();
+
             echo json_encode([
                 'success' => true
             ]);
-        } else {
+
+        } catch (Throwable $e) {
+
+            // Log detailed database errors on the server
+            error_log(
+                'Register Patient Error: ' . $e->getMessage()
+            );
+
+            // Return a safe message to the user
             echo json_encode([
                 'success' => false,
-                'error' => $stmt->error
+                'error' => 'Unable to register patient. Please try again.'
             ]);
-        }
 
-        $stmt->close();
+        } finally {
+            $stmt->close();
+        }
     }
 
     // Update Patient - Server-Side Input Validation
@@ -205,7 +250,7 @@ class AdminController {
             return;
         }
 
-        // Validate patient ID
+        // Validate Patient ID
         if (!is_string($data['patient_id'] ?? null) ||
             trim($data['patient_id']) === '') {
 
@@ -216,7 +261,7 @@ class AdminController {
             return;
         }
 
-        // Validate patient name
+        // Validate Patient Name
         if (!is_string($data['patient_name'] ?? null) ||
             trim($data['patient_name']) === '') {
 
@@ -227,7 +272,7 @@ class AdminController {
             return;
         }
 
-        // Server-side email validation
+        // Server-Side Email Validation
         $email = $data['patient_email'] ?? null;
 
         if (!is_string($email) ||
@@ -242,7 +287,7 @@ class AdminController {
 
         $data['patient_email'] = trim($email);
 
-        // Update patient information
+        // Update Patient Information
         $stmt = $this->conn->prepare("
             UPDATE patient SET
                 patient_name = ?,
@@ -274,7 +319,7 @@ class AdminController {
         $stmt->close();
     }
 
-    // Generate Staff ID - Original Function Restored
+    // Generate Staff ID
     public function generateStaffId() {
         $role = $_GET['role'] ?? '';
 
@@ -308,7 +353,11 @@ class AdminController {
             $newID = $prefix . '001';
         }
 
-        echo json_encode(['id' => $newID]);
+        echo json_encode([
+            'id' => $newID
+        ]);
+
+        $stmt->close();
     }
 
     // Create Staff Request
@@ -318,7 +367,7 @@ class AdminController {
             true
         );
 
-        // Basic validation
+        // Basic Validation
         if (empty($data['staff_id']) ||
             empty($data['staff_email'])) {
 
@@ -329,7 +378,7 @@ class AdminController {
             return;
         }
 
-        // Check duplicate email in staff table
+        // Check Duplicate Email in Staff Table
         $check = $this->conn->prepare(
             "SELECT staff_id FROM staff WHERE staff_email = ?"
         );
@@ -342,13 +391,14 @@ class AdminController {
                 'success' => false,
                 'message' => 'Email already exists in active staff'
             ]);
+
             $check->close();
             return;
         }
 
         $check->close();
 
-        // Check duplicate email in pending_staff table
+        // Check Duplicate Email in Pending Staff Table
         $checkPending = $this->conn->prepare(
             "SELECT pending_id FROM pending_staff WHERE staff_email = ?"
         );
@@ -361,13 +411,14 @@ class AdminController {
                 'success' => false,
                 'message' => 'A request with this email is already pending approval'
             ]);
+
             $checkPending->close();
             return;
         }
 
         $checkPending->close();
 
-        // Insert into pending_staff table
+        // Insert into Pending Staff Table
         $stmt = $this->conn->prepare("
             INSERT INTO pending_staff (
                 staff_id,
@@ -394,10 +445,11 @@ class AdminController {
             $data['registered_by']
         );
 
-        if ($stmt->execute()) {
-            $pendingId = $stmt->insert_id;
+        // Secure Error Handling
+        try {
+            $stmt->execute();
 
-            // Insert into user_approval table
+            // Insert into User Approval Table
             $approvalStmt = $this->conn->prepare("
                 INSERT INTO user_approval (
                     approved_user_id,
@@ -418,36 +470,69 @@ class AdminController {
                 'success' => true,
                 'message' => 'Staff request submitted for approval'
             ]);
-        } else {
+
+        } catch (Throwable $e) {
+
+            // Log detailed errors on the server
+            error_log(
+                'Create Staff Request Error: ' . $e->getMessage()
+            );
+
+            // Return a safe message to the user
             echo json_encode([
                 'success' => false,
-                'error' => $stmt->error
+                'error' => 'Unable to submit staff request. Please try again.'
             ]);
-        }
 
-        $stmt->close();
+        } finally {
+            $stmt->close();
+        }
     }
 }
 
-// Router
-$action = $_GET['action'] ?? '';
-$id = $_GET['id'] ?? '';
 
-$controller = new AdminController($conn);
+// Router - Secure Error Handling for All Actions
+try {
+    require_once __DIR__ . "/../config/conn.php";
 
-match ($action) {
-    'getStaff' => $controller->getStaff(),
-    'getPatients' => $controller->getPatients(),
-    'getStaffById' => $controller->getStaffById($id),
-    'getPatientById' => $controller->getPatientById($id),
-    'updateStaff' => $controller->updateStaff(),
-    'updatePatient' => $controller->updatePatient(),
-    'generatePatientId' => $controller->generatePatientId(),
-    'registerPatient' => $controller->registerPatient(),
-    'generateStaffId' => $controller->generateStaffId(),
-    'createStaffRequest' => $controller->createStaffRequest(),
-    default => (function() {
-        echo json_encode(['error' => 'Invalid action']);
-    })()
-};
+    $action = $_GET['action'] ?? '';
+    $id = $_GET['id'] ?? '';
+
+    $controller = new AdminController($conn);
+
+    match ($action) {
+        'getStaff' => $controller->getStaff(),
+        'getPatients' => $controller->getPatients(),
+        'getStaffById' => $controller->getStaffById($id),
+        'getPatientById' => $controller->getPatientById($id),
+        'updateStaff' => $controller->updateStaff(),
+        'updatePatient' => $controller->updatePatient(),
+        'generatePatientId' => $controller->generatePatientId(),
+        'registerPatient' => $controller->registerPatient(),
+        'generateStaffId' => $controller->generateStaffId(),
+        'createStaffRequest' => $controller->createStaffRequest(),
+
+        default => (function() {
+            echo json_encode([
+                'error' => 'Invalid action'
+            ]);
+        })()
+    };
+
+} catch (Throwable $e) {
+
+    // Log detailed errors on the server
+    error_log(
+        'AdminController Error: ' . $e->getMessage()
+    );
+
+    // Return a generic error message
+    http_response_code(500);
+
+    echo json_encode([
+        'success' => false,
+        'error' => 'An internal server error occurred. Please try again.',
+        'message' => 'An internal server error occurred. Please try again.'
+    ]);
+}
 ?>
