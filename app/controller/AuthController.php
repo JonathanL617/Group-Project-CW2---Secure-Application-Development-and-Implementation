@@ -5,6 +5,8 @@ require_once __DIR__ . '/../config/session_config.php';
 require_once __DIR__ . "/../config/conn.php";
 require_once __DIR__ . "/password_functions.php";
 require_once __DIR__ . "/../model/UserModel.php";
+require_once __DIR__ . "/login_security.php";
+require_once __DIR__ . "/audit_logger.php";
 
 class AuthController {
 
@@ -32,18 +34,43 @@ class AuthController {
                 throw new Exception('Invalid email format.');
             }
 
+            // Client IP & User Agent for brute-force defense and audit tracking
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            if (!filter_var($ipAddress, FILTER_VALIDATE_IP)) {
+                $ipAddress = '127.0.0.1';
+            }
+            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+
+            // Check if account/IP is currently blocked by brute-force detector
+            if (isLoginBlocked($this->conn, $email, $ipAddress)) {
+                throw new Exception('Too many failed login attempts. Please try again in 15 minutes.');
+            }
+
             $userModel = new UserModel($this->conn);
             $row = $userModel->getUserByEmail($email);
 
             // Check email and password
             if (!$row || !isPasswordCorrect($password, $row['user_password'])) {
+                $failedResult = recordFailedLogin($this->conn, $email, $ipAddress, $userAgent);
+                if (!empty($failedResult['blocked'])) {
+                    throw new Exception('Too many failed login attempts. Please try again in 15 minutes.');
+                }
                 throw new Exception('Invalid email or password.');
             }
-            // Check whether staff must change their temporary password
-
 
             // Check account status
             if (strtolower($row['user_status']) !== 'active') {
+                logActivity($this->conn, [
+                    'actor_user_id' => (string) $row['user_id'],
+                    'actor_role' => $row['user_role'] ?? 'Unknown',
+                    'action' => 'LOGIN_INACTIVE_ACCOUNT',
+                    'category' => 'Authentication',
+                    'target_type' => 'User',
+                    'target_id' => (string) $row['user_id'],
+                    'status' => 'FAILED',
+                    'ip_address' => $ipAddress,
+                    'user_agent' => $userAgent
+                ]);
                 throw new Exception(
                     'Your account is ' .
                     $row['user_status'] .
@@ -117,6 +144,16 @@ class AuthController {
             // Store database session ID
             $_SESSION['session_id'] = $stmt->insert_id;
             $_SESSION['last_activity'] = time();
+
+            // Clear brute-force attempts and record successful login in audit log
+            recordSuccessfulLogin(
+                $this->conn,
+                $email,
+                $ipAddress,
+                (string) $row['user_id'],
+                $row['user_role'],
+                $userAgent
+            );
             // Check whether newly approved staff must change their temporary password
                 if (
                     in_array($row['user_role'], ['doctor', 'pharmacist'], true) &&
@@ -228,6 +265,9 @@ class AuthController {
             session_start();
         }
 
+        $userId = $_SESSION['user_id'] ?? null;
+        $userRole = $_SESSION['user_role'] ?? 'Unknown';
+
         // Update database session record
         if (
             isset($_SESSION['user_id']) &&
@@ -235,7 +275,7 @@ class AuthController {
         ) {
 
             $sessionId = (int) $_SESSION['session_id'];
-            $userId = (string) $_SESSION['user_id'];
+            $userIdStr = (string) $_SESSION['user_id'];
 
             $stmt = $this->conn->prepare("
                 UPDATE sessions
@@ -250,11 +290,30 @@ class AuthController {
 
             if ($stmt) {
 
-                $stmt->bind_param("is", $sessionId, $userId);
+                $stmt->bind_param("is", $sessionId, $userIdStr);
 
                 $stmt->execute();
                 $stmt->close();
             }
+        }
+
+        // Audit log logout activity
+        if ($userId) {
+            $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            if (!filter_var($ipAddress, FILTER_VALIDATE_IP)) {
+                $ipAddress = '127.0.0.1';
+            }
+            logActivity($this->conn, [
+                'actor_user_id' => (string) $userId,
+                'actor_role' => $userRole,
+                'action' => 'USER_LOGOUT',
+                'category' => 'Authentication',
+                'target_type' => 'User',
+                'target_id' => (string) $userId,
+                'status' => 'SUCCESS',
+                'ip_address' => $ipAddress,
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null
+            ]);
         }
 
         // Clear session data
@@ -360,7 +419,7 @@ class AuthController {
 // =========================
 
 if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' &&
     isset($_POST['login'])
 ) {
 
@@ -378,7 +437,7 @@ if (
 // =========================
 
 if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
+    ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' &&
     isset($_POST['logout'])
 ) {
 
