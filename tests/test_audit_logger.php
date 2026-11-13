@@ -1,11 +1,10 @@
 <?php
 
-require_once __DIR__ . '/../includes/q5_db.php';
-require_once __DIR__ . '/../includes/audit_logger.php';
+require_once __DIR__ . '/../app/config/conn.php';
+require_once __DIR__ . '/../app/controller/audit_logger.php';
 
 try {
-    // Connect to the Q5 testing database
-    $conn = q5_get_db_connection();
+    // Use the central database connection
 
     // Create a fictional test activity
     $event = [

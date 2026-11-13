@@ -1,12 +1,9 @@
 <?php
 
-require_once __DIR__ . '/../includes/q5_db.php';
-require_once __DIR__ . '/../includes/login_security.php';
-
-$conn = null;
+require_once __DIR__ . '/../app/config/conn.php';
+require_once __DIR__ . '/../app/controller/login_security.php';
 
 try {
-    $conn = q5_get_db_connection();
 
     // Fictional test account and documentation-only IP address.
     $identifier = 'q5-test-account@example.invalid';

@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/q5_security_config.php';
+require_once __DIR__ . '/../config/security_config.php';
 require_once __DIR__ . '/audit_logger.php';
 
 /**

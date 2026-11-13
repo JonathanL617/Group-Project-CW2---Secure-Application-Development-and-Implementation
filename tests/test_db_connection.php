@@ -1,11 +1,9 @@
 <?php
 
-require_once __DIR__ . '/../includes/q5_db.php';
+require_once __DIR__ . '/../app/config/conn.php';
 
 try {
-    $conn = q5_get_db_connection();
-
-    echo "Q5 database connection successful!<br>";
+    echo "Database connection successful!<br>";
 
     $result = $conn->query("SELECT DATABASE() AS db_name");
 
