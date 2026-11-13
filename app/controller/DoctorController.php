@@ -1,4 +1,3 @@
-
 <?php
 require_once __DIR__ . '/../config/session_config.php';
 
@@ -22,51 +21,94 @@ $loggedInUser = $_SESSION['staff_id'] ?? '';
 
 $model = new DoctorModel($conn);
 
-// Get JSON input
-$input = json_decode(file_get_contents('php://input'), true);
-$action = $input['action'] ?? $_GET['action'] ?? '';
+// Get the request method and input
+$method = $_SERVER['REQUEST_METHOD'];
+$action = $_GET['action'] ?? '';
 
-header('Content-Type: application/json');
+if ($method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $action = $input['action'] ?? $action;
+}
 
 switch ($action) {
+    case 'getStaffInfo':
+        $staff = $model->getStaffById($loggedInUser);
+        echo json_encode(['success' => true, 'data' => $staff]);
+        break;
+
     case 'getPatients':
-        $search = $_GET['search'] ?? '';
-        $patients = $model->getAllPatients($search);
+        $patients = $model->getPatients();
         echo json_encode(['success' => true, 'patients' => $patients]);
         break;
-        
+
     case 'getPatientHistory':
-        $id = $_GET['id'] ?? '';
-        if (empty($id)) {
-            echo json_encode(['success' => false, 'msg' => 'Patient ID is required']);
-            break;
-        }
-        $history = $model->getPatientHistory($id);
+        $patientId = $_GET['patient_id'] ?? '';
+        $history = $model->getPatientPrescriptionHistory($patientId);
         echo json_encode(['success' => true, 'history' => $history]);
         break;
-        
-    case 'getPrescriptions':
-        $search = $_GET['search'] ?? '';
-        $prescriptions = $model->getAllPrescriptions($search);
-        echo json_encode(['success' => true, 'prescriptions' => $prescriptions]);
+
+    case 'getPatientRecords':
+        $records = $model->getPatientRecords();
+        echo json_encode(['success' => true, 'records' => $records]);
         break;
-        
-    case 'getMedicines':
-        $medicines = $model->getAllMedicines();
+
+    case 'searchMedicines':
+        $query = $_GET['q'] ?? '';
+        $medicines = $model->searchMedicines($query);
         echo json_encode(['success' => true, 'medicines' => $medicines]);
         break;
         
     case 'createPrescription':
         $patientId = $input['patient_id'] ?? '';
-        $staffId = $loggedInUser;
+        $staffId = $loggedInUser; // Use authenticated doctor from session
         $medicines = $input['medicines'] ?? [];
 
-        if (empty($patientId) || empty($medicines)) {
-            echo json_encode(['success' => false, 'msg' => 'Missing required fields']);
+        // Validate patient ID and medicine list
+        if (!is_string($patientId) ||
+            trim($patientId) === '' ||
+            !is_array($medicines) ||
+            count($medicines) === 0) {
+
+            echo json_encode([
+                'success' => false,
+                'msg' => 'Invalid patient or medicine information'
+            ]);
             break;
         }
 
-        $res = $model->createPrescription($patientId, $staffId, $medicines);
+        // Server-side medicine quantity validation
+        $validMedicines = true;
+
+        foreach ($medicines as $med) {
+            if (!is_array($med) ||
+                !isset($med['id'], $med['qty']) ||
+                !is_string($med['id']) ||
+                trim($med['id']) === '' ||
+                filter_var(
+                    $med['qty'],
+                    FILTER_VALIDATE_INT,
+                    ['options' => ['min_range' => 1]]
+                ) === false) {
+
+                $validMedicines = false;
+                break;
+            }
+        }
+
+        if (!$validMedicines) {
+            echo json_encode([
+                'success' => false,
+                'msg' => 'Medicine quantity must be a positive integer'
+            ]);
+            break;
+        }
+
+        $res = $model->createPrescription(
+            $patientId,
+            $staffId,
+            $medicines
+        );
+
         echo json_encode($res);
         break;
         
@@ -87,27 +129,9 @@ switch ($action) {
         $prescriptions = $model->getPrescriptionsByStaff($staffId, $search);
         echo json_encode(['success' => true, 'prescriptions' => $prescriptions]);
         break;
-        
+
     default:
         echo json_encode(['success' => false, 'msg' => 'Invalid action']);
         break;
-
-    // Add this case to your switch statement in the controller
-    case 'getDoctorStats':
-        $stats = $model->getDoctorStats($loggedInUser);
-        echo json_encode(['success' => true, 'stats' => $stats]);
-        break;
-
-
-    case 'getPrescriptionDetails':
-        $orderId = $_GET['order_id'] ?? '';
-        if (empty($orderId)) {
-            echo json_encode(['success' => false, 'msg' => 'Order ID is required']);
-            break;
-        }
-        $result = $model->getPrescriptionDetails($orderId);
-        echo json_encode($result);
-        break;
-
 }
 ?>

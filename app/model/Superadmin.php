@@ -1,219 +1,371 @@
 <?php
 require_once __DIR__ . '/../controller/password_functions.php';
-    class SuperAdminModel {
-        private $conn;
 
-        public function __construct($conn){
-            $this->conn = $conn;
-        }
+class SuperAdminModel {
+    private $conn;
 
-        public function getStats() {
-            $totalStmt    = $this->conn->query("SELECT COUNT(*) AS total FROM admin");
-            $activeStmt   = $this->conn->query("SELECT COUNT(*) AS active FROM admin WHERE admin_login_status = 'active'");
-            $inactiveStmt = $this->conn->query("SELECT COUNT(*) AS inactive FROM admin WHERE admin_login_status = 'inactive'");
+    public function __construct($conn) {
+        $this->conn = $conn;
+    }
 
-            $total    = $totalStmt->fetch_assoc()['total'];
-            $active   = $activeStmt->fetch_assoc()['active'];
-            $inactive = $inactiveStmt->fetch_assoc()['inactive'];
+    public function getStats() {
+        $totalStmt = $this->conn->query(
+            "SELECT COUNT(*) AS total FROM admin"
+        );
 
-            // Admins registered BY the current user (from session)
-            $superId = $_SESSION['super_admin_id'] ;
+        $activeStmt = $this->conn->query(
+            "SELECT COUNT(*) AS active FROM admin
+             WHERE admin_login_status = 'active'"
+        );
 
-            $registeredByCurrent = 0;
-            if ($superId) {
-                $stmt = $this->conn->prepare("SELECT COUNT(*) AS count FROM admin WHERE registered_by = ?");
-                $stmt->bind_param('s', $superId);
-                $stmt->execute();
-                $registeredByCurrent = $stmt->get_result()->fetch_assoc()['count'];
-                $stmt->close();
-            }
+        $inactiveStmt = $this->conn->query(
+            "SELECT COUNT(*) AS inactive FROM admin
+             WHERE admin_login_status = 'inactive'"
+        );
 
-            return [
-                'total' => $total,
-                'active' => $active,
-                'inactive' => $inactive,
-                'registered_by_current' => $registeredByCurrent
-            ];
-        }
+        $total = $totalStmt->fetch_assoc()['total'];
+        $active = $activeStmt->fetch_assoc()['active'];
+        $inactive = $inactiveStmt->fetch_assoc()['inactive'];
 
-        public function getAllAdmin(){
-            $sql = "SELECT a.admin_id AS id, 
-                           a.admin_username AS username, 
-                           a.admin_email AS email, 
-                           DATE_FORMAT(a.admin_dob, '%Y-%m-%d') AS dob, 
-                           a.admin_login_status AS status,
-                           a.registered_by
-                           FROM admin a
-                           ORDER BY a.admin_id DESC";
-            
-            $result = $this->conn->query($sql);
-            return $result->fetch_all(MYSQLI_ASSOC);
-        }
+        // Admins registered by current Super Admin
+        $superId = $_SESSION['super_admin_id'] ?? null;
 
-        public function createAdmin(array $data): array {
-            $adminId  = trim($data['admin_id'] ?? '');
-            $username = trim($data['username'] ?? '');
-            $email    = trim($data['email'] ?? '');
-            $dob      = $data['dob'] ?? '';
-            $password = $data['password'] ?? '';
-            $regBy    = $data['registered_by'] ?? '';
+        $registeredByCurrent = 0;
 
-            if (empty($adminId) || empty($username) || empty($email) || empty($dob) || empty($password)) {
-                return ['success' => false, 'message' => 'All fields are required'];
-            }
-
-            if (empty($regBy)) {
-                return ['success' => false, 'message' => 'Registered by field is required. Please log out and log back in.'];
-            }
-
-            //duplicate check
-            $chk = $this->conn->prepare(
-                "SELECT admin_id FROM admin WHERE admin_id = ? OR admin_username = ? OR admin_email = ?"
+        if ($superId) {
+            $stmt = $this->conn->prepare(
+                "SELECT COUNT(*) AS count
+                 FROM admin
+                 WHERE registered_by = ?"
             );
-            $chk->bind_param('sss', $adminId, $username, $email);
+
+            $stmt->bind_param('s', $superId);
+            $stmt->execute();
+
+            $registeredByCurrent =
+                $stmt->get_result()->fetch_assoc()['count'];
+
+            $stmt->close();
+        }
+
+        return [
+            'total' => $total,
+            'active' => $active,
+            'inactive' => $inactive,
+            'registered_by_current' => $registeredByCurrent
+        ];
+    }
+
+    public function getAllAdmin() {
+        $sql = "SELECT a.admin_id AS id,
+                       a.admin_username AS username,
+                       a.admin_email AS email,
+                       DATE_FORMAT(a.admin_dob, '%Y-%m-%d') AS dob,
+                       a.admin_login_status AS status,
+                       a.registered_by
+                FROM admin a
+                ORDER BY a.admin_id DESC";
+
+        $result = $this->conn->query($sql);
+
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    // Create Admin - Secure Error Handling
+    public function createAdmin(array $data): array {
+
+        try {
+            // Validate required input fields and data types
+            $requiredFields = [
+                'admin_id',
+                'username',
+                'email',
+                'dob',
+                'password'
+            ];
+
+            foreach ($requiredFields as $field) {
+                if (
+                    !isset($data[$field]) ||
+                    !is_string($data[$field]) ||
+                    trim($data[$field]) === ''
+                ) {
+                    return [
+                        'success' => false,
+                        'message' => 'All fields are required'
+                    ];
+                }
+            }
+
+            // Validate registered_by
+            if (
+                !isset($data['registered_by']) ||
+                !is_string($data['registered_by']) ||
+                trim($data['registered_by']) === ''
+            ) {
+                return [
+                    'success' => false,
+                    'message' => 'Registered by field is required. Please log out and log back in.'
+                ];
+            }
+
+            $adminId = trim($data['admin_id']);
+            $username = trim($data['username']);
+            $email = trim($data['email']);
+            $dob = $data['dob'];
+            $password = $data['password'];
+            $regBy = trim($data['registered_by']);
+
+            // Server-side email validation
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid email address'
+                ];
+            }
+
+            // Check duplicate Admin ID, username or email
+            $chk = $this->conn->prepare(
+                "SELECT admin_id FROM admin
+                 WHERE admin_id = ?
+                 OR admin_username = ?
+                 OR admin_email = ?"
+            );
+
+            $chk->bind_param(
+                'sss',
+                $adminId,
+                $username,
+                $email
+            );
+
             $chk->execute();
+
             if ($chk->get_result()->num_rows > 0) {
                 $chk->close();
-                return ['success' => false, 'message' => 'Admin ID, username or email already exists'];
+
+                return [
+                    'success' => false,
+                    'message' => 'Admin ID, username or email already exists'
+                ];
             }
+
             $chk->close();
 
-            
+            // Hash password with Argon2id (Jay)
             $hash = hashPassword($password);
 
+            // Insert new admin
             $ins = $this->conn->prepare("
-                INSERT INTO admin 
-                    (admin_id, admin_username, admin_email, admin_dob, admin_password, admin_login_status, registered_by)
-                VALUES 
-                    (?, ?, ?, ?, ?, 'active', ?)
+                INSERT INTO admin
+                (
+                    admin_id,
+                    admin_username,
+                    admin_email,
+                    admin_dob,
+                    admin_password,
+                    admin_login_status,
+                    registered_by
+                )
+                VALUES (?, ?, ?, ?, ?, 'active', ?)
             ");
-            $ins->bind_param('ssssss', $adminId, $username, $email, $dob, $hash, $regBy);
+
+            $ins->bind_param(
+                'ssssss',
+                $adminId,
+                $username,
+                $email,
+                $dob,
+                $hash,
+                $regBy
+            );
+
             $ok = $ins->execute();
             $ins->close();
 
             return [
                 'success' => $ok,
-                'message' => $ok ? 'Admin created' : 'Failed to create admin'
+                'message' => $ok
+                    ? 'Admin created'
+                    : 'Failed to create admin'
+            ];
+
+        } catch (Throwable $e) {
+
+            // Log detailed error on the server
+            error_log(
+                'Create Admin Error: ' . $e->getMessage()
+            );
+
+            // Return a safe error message
+            return [
+                'success' => false,
+                'message' => 'Unable to create admin. Please try again.'
             ];
         }
+    }
 
-        public function deleteAdmin($adminId){
-            $stmt = $this->conn->prepare("DELETE FROM admin WHERE admin_id = ?");
-            $stmt->bind_param('s', $adminId);
-            $success = $stmt->execute();
-            $stmt->close();
+    public function deleteAdmin($adminId) {
+        $stmt = $this->conn->prepare(
+            "DELETE FROM admin WHERE admin_id = ?"
+        );
 
-            return $success;
+        $stmt->bind_param('s', $adminId);
+
+        $success = $stmt->execute();
+        $stmt->close();
+
+        return $success;
+    }
+
+    public function toggleStatus($adminId, $newStatus) {
+        if (!in_array($newStatus, ['active', 'inactive'])) {
+            return false;
         }
 
-        public function toggleStatus($adminId, $newStatus){
-            if(!in_array($newStatus, ['active', 'inactive'])) return false;
+        $stmt = $this->conn->prepare(
+            "UPDATE admin
+             SET admin_login_status = ?
+             WHERE admin_id = ?"
+        );
 
-            $stmt = $this->conn->prepare("UPDATE admin SET admin_login_status = ? WHERE admin_id = ?");
-            $stmt->bind_param('ss', $newStatus, $adminId);
-            $success = $stmt->execute();
-            $stmt->close();
+        $stmt->bind_param(
+            'ss',
+            $newStatus,
+            $adminId
+        );
 
-            return $success;
+        $success = $stmt->execute();
+        $stmt->close();
+
+        return $success;
+    }
+
+    public function getPendingStaff() {
+        $sql = "SELECT
+                    ps.*,
+                    a.admin_username as requester_name,
+                    ua.approval_id,
+                    ua.status as approval_status
+                FROM pending_staff ps
+                LEFT JOIN admin a
+                    ON ps.registered_by = a.admin_id
+                LEFT JOIN user_approval ua
+                    ON ps.staff_id = ua.approved_user_id
+                WHERE ua.status = 'pending'
+                ORDER BY ps.created_at DESC";
+
+        $result = $this->conn->query($sql);
+
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
+
+    public function updateStaffStatus($staffId, $status) {
+
+        // Allowed statuses
+        if (!in_array($status, ['approved', 'rejected'])) {
+            return false;
         }
 
-        public function getPendingStaff() {
-            $sql = "SELECT 
-                        ps.*, 
-                        a.admin_username as requester_name,
-                        ua.approval_id,
-                        ua.status as approval_status
-                    FROM pending_staff ps
-                    LEFT JOIN admin a ON ps.registered_by = a.admin_id
-                    LEFT JOIN user_approval ua ON ps.staff_id = ua.approved_user_id
-                    WHERE ua.status = 'pending'
-                    ORDER BY ps.created_at DESC";
-            
-            $result = $this->conn->query($sql);
-            return $result->fetch_all(MYSQLI_ASSOC);
+        // Get pending staff data
+        $getPending = $this->conn->prepare(
+            "SELECT * FROM pending_staff WHERE staff_id = ?"
+        );
+
+        $getPending->bind_param('s', $staffId);
+        $getPending->execute();
+
+        $pendingData = $getPending
+            ->get_result()
+            ->fetch_assoc();
+
+        $getPending->close();
+
+        if (!$pendingData) {
+            return false;
         }
 
-        public function updateStaffStatus($staffId, $status) {
-            // Allowed statuses - lowercase to match database
-            if (!in_array($status, ['approved', 'rejected'])) {
-                return false;
-            }
+        // Update user approval status
+        $updateApproval = $this->conn->prepare("
+            UPDATE user_approval
+            SET status = ?,
+                approval_date = NOW(),
+                approver_id = ?
+            WHERE approved_user_id = ?
+              AND status = 'pending'
+        ");
 
-            // Get pending staff data
-            $getPending = $this->conn->prepare("SELECT * FROM pending_staff WHERE staff_id = ?");
-            $getPending->bind_param('s', $staffId);
-            $getPending->execute();
-            $pendingData = $getPending->get_result()->fetch_assoc();
-            $getPending->close();
+        $superAdminId = $_SESSION['super_admin_id'] ?? 'SA001';
 
-            if (!$pendingData) {
-                return false;
-            }
+        $updateApproval->bind_param(
+            'sss',
+            $status,
+            $superAdminId,
+            $staffId
+        );
 
-            // Update user_approval status
-            $updateApproval = $this->conn->prepare("
-                UPDATE user_approval 
-                SET status = ?, 
-                    approval_date = NOW(),
-                    approver_id = ? 
-                WHERE approved_user_id = ? AND status = 'pending'
+        $updateApproval->execute();
+        $updateApproval->close();
+
+        if ($status === 'approved') {
+            // Insert into staff table with active status & mandatory first-login password change
+            $temporaryPassword = 'Testing1!';
+            $defaultPass = hashPassword($temporaryPassword);
+            $activeStatus = 'active';
+
+            $insertStaff = $this->conn->prepare("
+                INSERT INTO staff
+                (
+                    staff_id, staff_name, staff_dob, staff_specialization,
+                    staff_role, staff_phone, staff_email, staff_password,
+                    registered_by, staff_status, must_change_password
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             ");
-            $superAdminId = $_SESSION['super_admin_id'];
-            $updateApproval->bind_param('sss', $status, $superAdminId, $staffId);
-            $updateApproval->execute();
-            $updateApproval->close();
 
-            if ($status === 'approved') {
-                // Insert into staff table with active status
-                $temporaryPassword = 'Testing1!';
+            $insertStaff->bind_param(
+                'ssssssssss',
+                $pendingData['staff_id'],
+                $pendingData['staff_name'],
+                $pendingData['staff_dob'],
+                $pendingData['staff_specialization'],
+                $pendingData['staff_role'],
+                $pendingData['staff_phone'],
+                $pendingData['staff_email'],
+                $defaultPass,
+                $pendingData['registered_by'],
+                $activeStatus
+            );
 
-                $defaultPass = hashPassword($temporaryPassword);
-                                $activeStatus = 'active';
-                                
-                $insertStaff = $this->conn->prepare("
-                    INSERT INTO staff
-                    (
-                        staff_id, staff_name, staff_dob, staff_specialization,
-                        staff_role, staff_phone, staff_email, staff_password,
-                        registered_by, staff_status, must_change_password
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-                ");
-                
-                $insertStaff->bind_param('ssssssssss',
-                    $pendingData['staff_id'],
-                    $pendingData['staff_name'],
-                    $pendingData['staff_dob'],
-                    $pendingData['staff_specialization'],
-                    $pendingData['staff_role'],
-                    $pendingData['staff_phone'],
-                    $pendingData['staff_email'],
-                    $defaultPass,
-                    $pendingData['registered_by'],
-                    $activeStatus
+            $success = $insertStaff->execute();
+            $insertStaff->close();
+
+            if ($success) {
+                // Delete from pending_staff table
+                $deletePending = $this->conn->prepare(
+                    "DELETE FROM pending_staff WHERE staff_id = ?"
                 );
-                
-                $success = $insertStaff->execute();
-                $insertStaff->close();
-                
-                if ($success) {
-                    // Delete from pending_staff table
-                    $deletePending = $this->conn->prepare("DELETE FROM pending_staff WHERE staff_id = ?");
-                    $deletePending->bind_param('s', $staffId);
-                    $deletePending->execute();
-                    $deletePending->close();
-                }
-                
-                return $success;
-            } else {
-                // Rejected - just delete from pending_staff
-                $deletePending = $this->conn->prepare("DELETE FROM pending_staff WHERE staff_id = ?");
+
                 $deletePending->bind_param('s', $staffId);
-                $success = $deletePending->execute();
+                $deletePending->execute();
                 $deletePending->close();
-                
-                return $success;
             }
+
+            return $success;
+
+        } else {
+
+            // Rejected - delete from pending_staff
+            $deletePending = $this->conn->prepare(
+                "DELETE FROM pending_staff WHERE staff_id = ?"
+            );
+
+            $deletePending->bind_param('s', $staffId);
+            $success = $deletePending->execute();
+            $deletePending->close();
+
+            return $success;
         }
     }
+}
 ?>

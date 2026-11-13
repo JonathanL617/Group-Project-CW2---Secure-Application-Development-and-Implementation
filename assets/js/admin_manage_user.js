@@ -1,4 +1,6 @@
-// assets/js/manage_users.js
+
+ // assets/js/admin_manage_user.js
+
 document.addEventListener('DOMContentLoaded', () => {
     const staffTableBody = document.getElementById('staffTable');
     const patientTableBody = document.getElementById('patientTable');
@@ -17,78 +19,157 @@ document.addEventListener('DOMContentLoaded', () => {
     const addressPattern = /^.{1,255}$/;
     const dobPattern = /^\d{4}-\d{2}-\d{2}$/;
 
-    // Cache for search filtering
     let staffDataCache = [];
     let patientDataCache = [];
 
-    // Populate Staff table
+    // XSS Prevention - Display data as plain text
+    function appendSafeCell(row, value) {
+        const cell = document.createElement('td');
+        cell.textContent = value ?? '';
+        row.appendChild(cell);
+    }
+
+    // Display table messages safely
+    function showTableMessage(tableBody, columns, message, isError = false) {
+        if (!tableBody) return;
+
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+
+        cell.colSpan = columns;
+        cell.className = isError
+            ? 'text-center text-danger'
+            : 'text-center text-muted';
+
+        cell.textContent = message;
+        row.appendChild(cell);
+        tableBody.replaceChildren(row);
+    }
+
+    // Display error messages safely
+    function showFormErrors(container, messages) {
+        if (!container) return;
+
+        container.style.display = 'block';
+        container.style.whiteSpace = 'pre-line';
+        container.textContent = Array.isArray(messages)
+            ? messages.join('\n')
+            : String(messages);
+    }
+
+    function clearFormErrors(container) {
+        if (!container) return;
+
+        container.style.display = 'none';
+        container.textContent = '';
+    }
+
+    // Create Edit button safely
+    function appendEditButton(row, id, modalSelector) {
+        const actionCell = document.createElement('td');
+        const editButton = document.createElement('button');
+
+        editButton.type = 'button';
+        editButton.className = 'btn btn-primary btn-sm edit-btn';
+        editButton.textContent = 'Edit';
+
+        editButton.dataset.id = String(id ?? '');
+        editButton.setAttribute('data-bs-toggle', 'modal');
+        editButton.setAttribute('data-bs-target', modalSelector);
+
+        actionCell.appendChild(editButton);
+        row.appendChild(actionCell);
+    }
+
+    // Populate Staff table - XSS Prevention
     function populateStaffTable(data) {
-        staffTableBody.innerHTML = '';
-        if (!data || data.length === 0) {
-            staffTableBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No staff found.</td></tr>';
+        if (!staffTableBody) return;
+
+        staffTableBody.replaceChildren();
+
+        if (!Array.isArray(data) || data.length === 0) {
+            showTableMessage(staffTableBody, 10, 'No staff found.');
             return;
         }
+
         data.forEach(staff => {
             const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${staff.staff_id}</td>
-                <td>${staff.staff_name}</td>
-                <td>${staff.staff_dob}</td>
-                <td>${staff.staff_specialization}</td>
-                <td>${staff.staff_role}</td>
-                <td>${staff.staff_phone}</td>
-                <td>${staff.staff_email}</td>
-                <td>${staff.registered_by}</td>
-                <td>${staff.staff_status}</td>
-                <td>
-                    <button class="btn btn-primary btn-sm edit-btn" data-bs-toggle="modal" data-bs-target="#editStaffModal" data-id="${staff.staff_id}">Edit</button>
-                </td>
-            `;
+
+            // Use textContent instead of innerHTML
+            appendSafeCell(row, staff.staff_id);
+            appendSafeCell(row, staff.staff_name);
+            appendSafeCell(row, staff.staff_dob);
+            appendSafeCell(row, staff.staff_specialization);
+            appendSafeCell(row, staff.staff_role);
+            appendSafeCell(row, staff.staff_phone);
+            appendSafeCell(row, staff.staff_email);
+            appendSafeCell(row, staff.registered_by);
+            appendSafeCell(row, staff.staff_status);
+
+            appendEditButton(row, staff.staff_id, '#editStaffModal');
+
             staffTableBody.appendChild(row);
         });
     }
 
-    // Populate Patient table
+    // Populate Patient table - XSS Prevention
     function populatePatientTable(data) {
-        patientTableBody.innerHTML = '';
-        if (!data || data.length === 0) {
-            patientTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No patients found.</td></tr>';
+        if (!patientTableBody) return;
+
+        patientTableBody.replaceChildren();
+
+        if (!Array.isArray(data) || data.length === 0) {
+            showTableMessage(patientTableBody, 9, 'No patients found.');
             return;
         }
+
         data.forEach(patient => {
             const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${patient.patient_id}</td>
-                <td>${patient.patient_name}</td>
-                <td>${patient.patient_date_of_birth}</td>
-                <td>${patient.patient_phone}</td>
-                <td>${patient.patient_gender}</td>
-                <td>${patient.patient_email}</td>
-                <td>${patient.patient_address}</td>
-                <td>${patient.registered_by}</td>
-                <td>
-                    <button class="btn btn-primary btn-sm edit-btn" data-bs-toggle="modal" data-bs-target="#editPatientModal" data-id="${patient.patient_id}">Edit</button>
-                </td>
-            `;
+
+            // Use textContent instead of innerHTML
+            appendSafeCell(row, patient.patient_id);
+            appendSafeCell(row, patient.patient_name);
+            appendSafeCell(row, patient.patient_date_of_birth);
+            appendSafeCell(row, patient.patient_phone);
+            appendSafeCell(row, patient.patient_gender);
+            appendSafeCell(row, patient.patient_email);
+            appendSafeCell(row, patient.patient_address);
+            appendSafeCell(row, patient.registered_by);
+
+            appendEditButton(row, patient.patient_id, '#editPatientModal');
+
             patientTableBody.appendChild(row);
         });
     }
 
-    // Update stat counters
+    // Update dashboard statistics
     function updateCounters() {
         const totalStaff = staffDataCache.length;
-        const activeStaff = staffDataCache.filter(s => s.staff_status === 'active').length;
+
+        const activeStaff = staffDataCache.filter(
+            s => s.staff_status === 'active'
+        ).length;
+
         const totalPatients = patientDataCache.length;
-        
-        // Get current admin ID from global variable
-        const currentAdminId = typeof loggedInUserId !== 'undefined' ? loggedInUserId : '';
-        const registeredByCurrent = staffDataCache.filter(s => s.registered_by === currentAdminId).length + 
-                                     patientDataCache.filter(p => p.registered_by === currentAdminId).length;
-        
+
+        const currentAdminId =
+            typeof loggedInUserId !== 'undefined'
+                ? loggedInUserId
+                : '';
+
+        const registeredByCurrent =
+            staffDataCache.filter(
+                s => s.registered_by === currentAdminId
+            ).length +
+            patientDataCache.filter(
+                p => p.registered_by === currentAdminId
+            ).length;
+
         document.getElementById('totalStaff').textContent = totalStaff;
         document.getElementById('activeStaff').textContent = activeStaff;
         document.getElementById('totalPatients').textContent = totalPatients;
-        document.getElementById('registeredByCurrent').textContent = registeredByCurrent;
+        document.getElementById('registeredByCurrent').textContent =
+            registeredByCurrent;
     }
 
     // Fetch and populate tables
@@ -96,257 +177,437 @@ document.addEventListener('DOMContentLoaded', () => {
         let staffLoaded = false;
         let patientsLoaded = false;
 
-        // Fetch staff data
+        // Fetch Staff
         fetch('../../app/controller/AdminController.php?action=getStaff')
             .then(response => {
-                if (!response.ok) throw new Error('Failed to fetch staff');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch staff');
+                }
                 return response.json();
             })
             .then(data => {
-                if (data.error) throw new Error(data.error);
+                if (!Array.isArray(data)) {
+                    throw new Error('Invalid staff response');
+                }
+
                 staffDataCache = data;
                 populateStaffTable(data);
+
                 staffLoaded = true;
-                if (patientsLoaded) updateCounters();
+
+                if (patientsLoaded) {
+                    updateCounters();
+                }
             })
             .catch(error => {
                 console.error('Error fetching staff:', error);
-                staffTableBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Error loading staff.</td></tr>';
+
+                showTableMessage(
+                    staffTableBody,
+                    10,
+                    'Error loading staff.',
+                    true
+                );
             });
 
-        // Fetch patient data
+        // Fetch Patients
         fetch('../../app/controller/AdminController.php?action=getPatients')
             .then(response => {
-                if (!response.ok) throw new Error('Failed to fetch patients');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch patients');
+                }
                 return response.json();
             })
             .then(data => {
-                if (data.error) throw new Error(data.error);
+                if (!Array.isArray(data)) {
+                    throw new Error('Invalid patient response');
+                }
+
                 patientDataCache = data;
                 populatePatientTable(data);
+
                 patientsLoaded = true;
-                if (staffLoaded) updateCounters();
+
+                if (staffLoaded) {
+                    updateCounters();
+                }
             })
             .catch(error => {
                 console.error('Error fetching patients:', error);
-                patientTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Error loading patients.</td></tr>';
+
+                showTableMessage(
+                    patientTableBody,
+                    9,
+                    'Error loading patients.',
+                    true
+                );
             });
     }
 
-    // Search functionality for Staff
-    staffSearch.addEventListener('input', () => {
-        const query = staffSearch.value.toLowerCase();
-        const filteredData = staffDataCache.filter(staff =>
-            staff.staff_id.toLowerCase().includes(query) ||
-            staff.staff_name.toLowerCase().includes(query)
-        );
-        populateStaffTable(filteredData);
-    });
+    // Search Staff
+    if (staffSearch) {
+        staffSearch.addEventListener('input', () => {
+            const query = staffSearch.value.toLowerCase();
 
-    // Search functionality for Patients
-    patientSearch.addEventListener('input', () => {
-        const query = patientSearch.value.toLowerCase();
-        const filteredData = patientDataCache.filter(patient =>
-            patient.patient_id.toLowerCase().includes(query) ||
-            patient.patient_name.toLowerCase().includes(query)
-        );
-        populatePatientTable(filteredData);
-    });
+            const filteredData = staffDataCache.filter(staff =>
+                String(staff.staff_id ?? '').toLowerCase().includes(query) ||
+                String(staff.staff_name ?? '').toLowerCase().includes(query)
+            );
+
+            populateStaffTable(filteredData);
+        });
+    }
+
+    // Search Patients
+    if (patientSearch) {
+        patientSearch.addEventListener('input', () => {
+            const query = patientSearch.value.toLowerCase();
+
+            const filteredData = patientDataCache.filter(patient =>
+                String(patient.patient_id ?? '').toLowerCase().includes(query) ||
+                String(patient.patient_name ?? '').toLowerCase().includes(query)
+            );
+
+            populatePatientTable(filteredData);
+        });
+    }
 
     // Handle Edit button clicks
     document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('edit-btn')) {
-            const id = e.target.getAttribute('data-id');
-            const modal = e.target.getAttribute('data-bs-target');
+        const button = e.target.closest('.edit-btn');
+        if (!button) return;
 
-            if (modal === '#editStaffModal') {
-                fetch(`../../app/controller/AdminController.php?action=getStaffById&id=${id}`)
-                    .then(response => {
-                        if (!response.ok) throw new Error('Failed to fetch staff');
-                        return response.json();
-                    })
-                    .then(staff => {
-                        if (staff.error) throw new Error(staff.error);
-                        document.getElementById('edit_staff_id').value = staff.staff_id;
-                        document.getElementById('edit_staff_name').value = staff.staff_name;
-                        document.getElementById('edit_staff_dob').value = staff.staff_dob;
-                        document.getElementById('edit_staff_specialization').value = staff.staff_specialization;
-                        document.getElementById('edit_staff_role').value = staff.staff_role;
-                        document.getElementById('edit_staff_phone').value = staff.staff_phone;
-                        document.getElementById('edit_staff_email').value = staff.staff_email;
-                        document.getElementById('edit_staff_registered_by').value = staff.registered_by;
-                        document.getElementById('edit_staff_status').value = staff.staff_status;
-                        staffFormErrors.style.display = 'none';
-                        staffFormErrors.innerHTML = '';
-                    })
-                    .catch(error => {
-                        staffFormErrors.style.display = 'block';
-                        staffFormErrors.innerHTML = 'Error loading staff data: ' + error.message;
-                    });
-            } else if (modal === '#editPatientModal') {
-                fetch(`../../app/controller/AdminController.php?action=getPatientById&id=${id}`)
-                    .then(response => {
-                        if (!response.ok) throw new Error('Failed to fetch patient');
-                        return response.json();
-                    })
-                    .then(patient => {
-                        if (patient.error) throw new Error(patient.error);
-                        document.getElementById('edit_patient_id').value = patient.patient_id;
-                        document.getElementById('edit_patient_name').value = patient.patient_name;
-                        document.getElementById('edit_patient_dob').value = patient.patient_date_of_birth;
-                        document.getElementById('edit_patient_phone').value = patient.patient_phone;
-                        document.getElementById('edit_patient_gender').value = patient.patient_gender;
-                        document.getElementById('edit_patient_email').value = patient.patient_email;
-                        document.getElementById('edit_patient_address').value = patient.patient_address;
-                        document.getElementById('edit_patient_registered_by').value = patient.registered_by;
-                        patientFormErrors.style.display = 'none';
-                        patientFormErrors.innerHTML = '';
-                    })
-                    .catch(error => {
-                        patientFormErrors.style.display = 'block';
-                        patientFormErrors.innerHTML = 'Error loading patient data: ' + error.message;
-                    });
-            }
+        const id = button.dataset.id;
+        const modal = button.getAttribute('data-bs-target');
+
+        // Edit Staff
+        if (modal === '#editStaffModal') {
+            fetch(
+                '../../app/controller/AdminController.php?action=getStaffById&id=' +
+                encodeURIComponent(id)
+            )
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch staff');
+                    }
+                    return response.json();
+                })
+                .then(staff => {
+                    if (staff.error) {
+                        throw new Error('Failed to load staff');
+                    }
+
+                    document.getElementById('edit_staff_id').value =
+                        staff.staff_id;
+
+                    document.getElementById('edit_staff_name').value =
+                        staff.staff_name;
+
+                    document.getElementById('edit_staff_dob').value =
+                        staff.staff_dob;
+
+                    document.getElementById('edit_staff_specialization').value =
+                        staff.staff_specialization;
+
+                    document.getElementById('edit_staff_role').value =
+                        staff.staff_role;
+
+                    document.getElementById('edit_staff_phone').value =
+                        staff.staff_phone;
+
+                    document.getElementById('edit_staff_email').value =
+                        staff.staff_email;
+
+                    document.getElementById('edit_staff_registered_by').value =
+                        staff.registered_by;
+
+                    document.getElementById('edit_staff_status').value =
+                        staff.staff_status;
+
+                    clearFormErrors(staffFormErrors);
+                })
+                .catch(error => {
+                    console.error('Error loading staff:', error);
+
+                    showFormErrors(
+                        staffFormErrors,
+                        'Error loading staff data. Please try again.'
+                    );
+                });
+        }
+
+        // Edit Patient
+        else if (modal === '#editPatientModal') {
+            fetch(
+                '../../app/controller/AdminController.php?action=getPatientById&id=' +
+                encodeURIComponent(id)
+            )
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch patient');
+                    }
+                    return response.json();
+                })
+                .then(patient => {
+                    if (patient.error) {
+                        throw new Error('Failed to load patient');
+                    }
+
+                    document.getElementById('edit_patient_id').value =
+                        patient.patient_id;
+
+                    document.getElementById('edit_patient_name').value =
+                        patient.patient_name;
+
+                    document.getElementById('edit_patient_dob').value =
+                        patient.patient_date_of_birth;
+
+                    document.getElementById('edit_patient_phone').value =
+                        patient.patient_phone;
+
+                    document.getElementById('edit_patient_gender').value =
+                        patient.patient_gender;
+
+                    document.getElementById('edit_patient_email').value =
+                        patient.patient_email;
+
+                    document.getElementById('edit_patient_address').value =
+                        patient.patient_address;
+
+                    document.getElementById('edit_patient_registered_by').value =
+                        patient.registered_by;
+
+                    clearFormErrors(patientFormErrors);
+                })
+                .catch(error => {
+                    console.error('Error loading patient:', error);
+
+                    showFormErrors(
+                        patientFormErrors,
+                        'Error loading patient data. Please try again.'
+                    );
+                });
         }
     });
 
     // Validate and submit Staff form
-    editStaffForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        let errors = [];
+    if (editStaffForm) {
+        editStaffForm.addEventListener('submit', (e) => {
+            e.preventDefault();
 
-        const staffName = document.getElementById('edit_staff_name').value;
-        const staffDob = document.getElementById('edit_staff_dob').value;
-        const staffSpecialization = document.getElementById('edit_staff_specialization').value;
-        const staffRole = document.getElementById('edit_staff_role').value;
-        const staffPhone = document.getElementById('edit_staff_phone').value;
-        const staffEmail = document.getElementById('edit_staff_email').value;
-        const staffStatus = document.getElementById('edit_staff_status').value;
+            const errors = [];
 
-        if (!namePattern.test(staffName)) {
-            errors.push('Name must be 1-100 characters and contain only letters and spaces.');
-        }
-        if (!dobPattern.test(staffDob)) {
-            errors.push('Invalid date of birth format (YYYY-MM-DD).');
-        }
-        if (!specializationPattern.test(staffSpecialization)) {
-            errors.push('Specialization must be 1-100 characters and contain only letters and spaces.');
-        }
-        if (!['doctor', 'pharmacist'].includes(staffRole)) {
-            errors.push('Please select a valid role.');
-        }
-        if (!phonePattern.test(staffPhone)) {
-            errors.push('Phone must be 10-15 digits.');
-        }
-        if (!emailPattern.test(staffEmail)) {
-            errors.push('Invalid email format.');
-        }
-        if (!['active', 'inactive', 'block'].includes(staffStatus)) {
-            errors.push('Please select a valid status.');
-        }
+            const staffName =
+                document.getElementById('edit_staff_name').value;
 
-        if (errors.length > 0) {
-            staffFormErrors.style.display = 'block';
-            staffFormErrors.innerHTML = errors.join('<br>');
-            return;
-        }
+            const staffDob =
+                document.getElementById('edit_staff_dob').value;
 
-        fetch('../../app/controller/AdminController.php?action=updateStaff', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                staff_id: document.getElementById('edit_staff_id').value,
-                staff_name: staffName,
-                staff_dob: staffDob,
-                staff_specialization: staffSpecialization,
-                staff_role: staffRole,
-                staff_phone: staffPhone,
-                staff_email: staffEmail,
-                staff_status: staffStatus
+            const staffSpecialization =
+                document.getElementById('edit_staff_specialization').value;
+
+            const staffRole =
+                document.getElementById('edit_staff_role').value;
+
+            const staffPhone =
+                document.getElementById('edit_staff_phone').value;
+
+            const staffEmail =
+                document.getElementById('edit_staff_email').value;
+
+            const staffStatus =
+                document.getElementById('edit_staff_status').value;
+
+            if (!namePattern.test(staffName)) {
+                errors.push(
+                    'Name must be 1-100 characters and contain only letters and spaces.'
+                );
+            }
+
+            if (!dobPattern.test(staffDob)) {
+                errors.push('Invalid date of birth format (YYYY-MM-DD).');
+            }
+
+            if (!specializationPattern.test(staffSpecialization)) {
+                errors.push(
+                    'Specialization must be 1-100 characters and contain only letters and spaces.'
+                );
+            }
+
+            if (!['doctor', 'pharmacist'].includes(staffRole)) {
+                errors.push('Please select a valid role.');
+            }
+
+            if (!phonePattern.test(staffPhone)) {
+                errors.push('Phone must be 10-15 digits.');
+            }
+
+            if (!emailPattern.test(staffEmail)) {
+                errors.push('Invalid email format.');
+            }
+
+            if (!['active', 'inactive', 'block'].includes(staffStatus)) {
+                errors.push('Please select a valid status.');
+            }
+
+            if (errors.length > 0) {
+                showFormErrors(staffFormErrors, errors);
+                return;
+            }
+
+            clearFormErrors(staffFormErrors);
+
+            // Update Staff
+            fetch('../../app/controller/AdminController.php?action=updateStaff', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    staff_id: document.getElementById('edit_staff_id').value,
+                    staff_name: staffName,
+                    staff_dob: staffDob,
+                    staff_specialization: staffSpecialization,
+                    staff_role: staffRole,
+                    staff_phone: staffPhone,
+                    staff_email: staffEmail,
+                    staff_status: staffStatus
+                })
             })
-        })
-            .then(response => {
-                if (!response.ok) throw new Error('Failed to update staff');
-                return response.json();
-            })
-            .then(data => {
-                if (data.error) throw new Error(data.error);
-                alert('Staff updated successfully.');
-                bootstrap.Modal.getInstance(document.getElementById('editStaffModal')).hide();
-                loadTables();
-            })
-            .catch(error => {
-                staffFormErrors.style.display = 'block';
-                staffFormErrors.innerHTML = 'Error updating staff: ' + error.message;
-            });
-    });
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to update staff');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error || data.success === false) {
+                        throw new Error('Failed to update staff');
+                    }
+
+                    alert('Staff updated successfully.');
+
+                    bootstrap.Modal.getInstance(
+                        document.getElementById('editStaffModal')
+                    ).hide();
+
+                    loadTables();
+                })
+                .catch(error => {
+                    console.error('Error updating staff:', error);
+
+                    showFormErrors(
+                        staffFormErrors,
+                        'Error updating staff. Please try again.'
+                    );
+                });
+        });
+    }
 
     // Validate and submit Patient form
-    editPatientForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        let errors = [];
+    if (editPatientForm) {
+        editPatientForm.addEventListener('submit', (e) => {
+            e.preventDefault();
 
-        const patientName = document.getElementById('edit_patient_name').value;
-        const patientDob = document.getElementById('edit_patient_dob').value;
-        const patientPhone = document.getElementById('edit_patient_phone').value;
-        const patientGender = document.getElementById('edit_patient_gender').value;
-        const patientEmail = document.getElementById('edit_patient_email').value;
-        const patientAddress = document.getElementById('edit_patient_address').value;
+            const errors = [];
 
-        if (!namePattern.test(patientName)) {
-            errors.push('Name must be 1-100 characters and contain only letters and spaces.');
-        }
-        if (!dobPattern.test(patientDob)) {
-            errors.push('Invalid date of birth format (YYYY-MM-DD).');
-        }
-        if (!phonePattern.test(patientPhone)) {
-            errors.push('Phone must be 10-15 digits.');
-        }
-        if (!['Male', 'Female', 'Other'].includes(patientGender)) {
-            errors.push('Please select a valid gender.');
-        }
-        if (!emailPattern.test(patientEmail)) {
-            errors.push('Invalid email format.');
-        }
-        if (!addressPattern.test(patientAddress)) {
-            errors.push('Address must be 1-255 characters.');
-        }
+            const patientName =
+                document.getElementById('edit_patient_name').value;
 
-        if (errors.length > 0) {
-            patientFormErrors.style.display = 'block';
-            patientFormErrors.innerHTML = errors.join('<br>');
-            return;
-        }
+            const patientDob =
+                document.getElementById('edit_patient_dob').value;
 
-        fetch('../../app/controller/AdminController.php?action=updatePatient', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patient_id: document.getElementById('edit_patient_id').value,
-                patient_name: patientName,
-                patient_date_of_birth: patientDob,
-                patient_phone: patientPhone,
-                patient_gender: patientGender,
-                patient_email: patientEmail,
-                patient_address: patientAddress
+            const patientPhone =
+                document.getElementById('edit_patient_phone').value;
+
+            const patientGender =
+                document.getElementById('edit_patient_gender').value;
+
+            const patientEmail =
+                document.getElementById('edit_patient_email').value;
+
+            const patientAddress =
+                document.getElementById('edit_patient_address').value;
+
+            if (!namePattern.test(patientName)) {
+                errors.push(
+                    'Name must be 1-100 characters and contain only letters and spaces.'
+                );
+            }
+
+            if (!dobPattern.test(patientDob)) {
+                errors.push('Invalid date of birth format (YYYY-MM-DD).');
+            }
+
+            if (!phonePattern.test(patientPhone)) {
+                errors.push('Phone must be 10-15 digits.');
+            }
+
+            if (!['Male', 'Female', 'Other'].includes(patientGender)) {
+                errors.push('Please select a valid gender.');
+            }
+
+            if (!emailPattern.test(patientEmail)) {
+                errors.push('Invalid email format.');
+            }
+
+            if (!addressPattern.test(patientAddress)) {
+                errors.push('Address must be 1-255 characters.');
+            }
+
+            if (errors.length > 0) {
+                showFormErrors(patientFormErrors, errors);
+                return;
+            }
+
+            clearFormErrors(patientFormErrors);
+
+            // Update Patient
+            fetch('../../app/controller/AdminController.php?action=updatePatient', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    patient_id: document.getElementById('edit_patient_id').value,
+                    patient_name: patientName,
+                    patient_date_of_birth: patientDob,
+                    patient_phone: patientPhone,
+                    patient_gender: patientGender,
+                    patient_email: patientEmail,
+                    patient_address: patientAddress
+                })
             })
-        })
-            .then(response => {
-                if (!response.ok) throw new Error('Failed to update patient');
-                return response.json();
-            })
-            .then(data => {
-                if (data.error) throw new Error(data.error);
-                alert('Patient updated successfully.');
-                bootstrap.Modal.getInstance(document.getElementById('editPatientModal')).hide();
-                loadTables();
-            })
-            .catch(error => {
-                patientFormErrors.style.display = 'block';
-                patientFormErrors.innerHTML = 'Error updating patient: ' + error.message;
-            });
-    });
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to update patient');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error || data.success === false) {
+                        throw new Error('Failed to update patient');
+                    }
 
-    // Initialize tables
+                    alert('Patient updated successfully.');
+
+                    bootstrap.Modal.getInstance(
+                        document.getElementById('editPatientModal')
+                    ).hide();
+
+                    loadTables();
+                })
+                .catch(error => {
+                    console.error('Error updating patient:', error);
+
+                    showFormErrors(
+                        patientFormErrors,
+                        'Error updating patient. Please try again.'
+                    );
+                });
+        });
+    }
+
+    // Initial load
     loadTables();
 });
