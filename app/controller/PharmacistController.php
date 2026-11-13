@@ -1,8 +1,23 @@
-<?php
-session_start(); // required
-header('Content-Type: application/json');
 
-$loggedInUser = $_SESSION['user_id'] ?? 'P001'; // fallback
+<?php
+// Use the centralised secure session configuration
+require_once __DIR__ . '/../config/session_config.php';
+
+header('Content-Type: application/json; charset=utf-8');
+
+// Identify this as an API request
+$isApiRequest = true;
+
+// Check whether the login session has expired
+require_once __DIR__ . '/../config/session_timeout.php';
+
+// Check whether the user has pharmacist access
+require_once __DIR__ . '/../config/authorization.php';
+
+requireRole(['pharmacist']);
+
+$loggedInUser = $_SESSION['user_id'];
+
 require_once __DIR__ . '/../model/Pharmacist.php';
 
 $input = json_decode(file_get_contents('php://input'), true);

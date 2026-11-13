@@ -32,7 +32,18 @@ class UserModel {
         }
 
         // Check staff table (for doctors and pharmacists)
-        $stmt = $this->conn->prepare("SELECT staff_id AS user_id, staff_email AS user_email, staff_password AS user_password, staff_role AS user_role, 'staff' AS user_table, staff_status AS user_status FROM staff WHERE staff_email = ?");
+        $stmt = $this->conn->prepare("
+                SELECT
+                    staff_id AS user_id,
+                    staff_email AS user_email,
+                    staff_password AS user_password,
+                    staff_role AS user_role,
+                    'staff' AS user_table,
+                    staff_status AS user_status,
+                    must_change_password
+                FROM staff
+                WHERE staff_email = ?
+            ");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();

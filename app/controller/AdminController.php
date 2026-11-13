@@ -1,6 +1,21 @@
+
 <?php
-session_start(); // Start session to access session variables
-require_once __DIR__ . "/../config/conn.php";
+require_once __DIR__ . '/../config/session_config.php';
+
+header('Content-Type: application/json; charset=utf-8');
+
+// Identify this as an API request
+$isApiRequest = true;
+
+// Check session timeout
+require_once __DIR__ . '/../config/session_timeout.php';
+
+// Only Admin can access
+require_once __DIR__ . '/../config/authorization.php';
+
+requireRole(['admin']);
+
+require_once __DIR__ . '/../config/conn.php';
 
 class AdminController {
     private $conn;
@@ -78,6 +93,7 @@ class AdminController {
 
     public function registerPatient() {
         $data = json_decode(file_get_contents('php://input'), true);
+        $data['registered_by'] = $_SESSION['admin_id'] ?? '';
         $stmt = $this->conn->prepare("INSERT INTO patient (patient_id, patient_name, patient_date_of_birth, patient_phone, patient_gender, patient_email, patient_address, registered_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param('ssssssss', 
             $data['patient_id'],

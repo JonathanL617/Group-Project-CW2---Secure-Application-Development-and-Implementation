@@ -1,13 +1,18 @@
+
 <?php
-session_start();
+
+require_once '../config/session_config.php';
 require_once '../config/config.php';
 require_once '../config/conn.php';
 require_once '../controller/AuthController.php';
 
 $auth = new AuthController($conn);
-$error = '';
+$error = $_SESSION['login_error'] ?? '';
+unset($_SESSION['login_error']);
+
 $message = '';
-$showCard = 'login'; // Default to login card
+$showCard = 'login';
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
     try {
