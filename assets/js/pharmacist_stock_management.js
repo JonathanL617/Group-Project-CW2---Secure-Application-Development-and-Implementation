@@ -6,68 +6,144 @@ let currentMedicineId = '';
 document.addEventListener('DOMContentLoaded', () => {
     loadMedicines();
 
-    // Search input listener
     const searchInput = document.getElementById('searchInput');
+
     if (searchInput) {
-        searchInput.addEventListener('input', (e) => loadMedicines(e.target.value));
+        searchInput.addEventListener('input', (e) => {
+            loadMedicines(e.target.value);
+        });
     }
 });
 
+// XSS Prevention - Display data as plain text
+function createMedicineCell(row, value) {
+    const cell = document.createElement('td');
+    cell.textContent = value ?? '';
+    row.appendChild(cell);
+    return cell;
+}
+
+// Display a safe table message
+function showMedicineMessage(tbody, message, isError = false) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+
+    cell.colSpan = 6;
+    cell.className = isError
+        ? 'text-center text-danger'
+        : 'text-center';
+
+    cell.textContent = message;
+    row.appendChild(cell);
+    tbody.replaceChildren(row);
+}
+
+// Load medicines
 function loadMedicines(search = '') {
-    fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+    fetch('/Group-Project-CW2---Secure-Application-Development-and-Implementation/app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list_medicines', search: search })
+        body: JSON.stringify({
+            action: 'list_medicines',
+            search: search
+        })
     })
     .then(r => r.json())
     .then(d => {
         const tbody = document.querySelector('tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = '';
+        // Clear the previous table safely
+        tbody.replaceChildren();
 
         if (!d.success || !d.medicines || d.medicines.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='6' class='text-center'>No medicines found</td></tr>";
-            updateMedicinesDashboardStats([]); // Update dashboard with empty data
+            showMedicineMessage(tbody, 'No medicines found');
+            updateMedicinesDashboardStats([]);
             return;
         }
 
-        // Display medicines in table
+        // Display medicines safely
         d.medicines.forEach(m => {
             const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${m.medicine_id}</td>
-                <td>${m.medicine_name}</td>
-                <td>${parseFloat(m.medicine_price).toFixed(2)}</td>
-                <td>${m.medicine_quantity}</td>
-                <td>${m.medicine_description || '-'}</td>
-                <td>
-                    <button class="btn btn-sm btn-warning me-1" onclick="openEditModal('${m.medicine_id}', '${m.medicine_name}', ${m.medicine_price}, ${m.medicine_quantity}, '${m.medicine_description || ''}')">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteMedicine('${m.medicine_id}')">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            `;
+
+            // Use textContent instead of innerHTML
+            createMedicineCell(row, m.medicine_id);
+            createMedicineCell(row, m.medicine_name);
+            createMedicineCell(
+                row,
+                parseFloat(m.medicine_price).toFixed(2)
+            );
+            createMedicineCell(row, m.medicine_quantity);
+            createMedicineCell(
+                row,
+                m.medicine_description || '-'
+            );
+
+            // Create action buttons safely
+            const actionCell = document.createElement('td');
+
+            // Edit button
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.className = 'btn btn-sm btn-warning me-1';
+
+            const editIcon = document.createElement('i');
+            editIcon.className = 'bi bi-pencil';
+            editButton.appendChild(editIcon);
+
+            // Use addEventListener instead of inline onclick
+            editButton.addEventListener('click', () => {
+                openEditModal(
+                    m.medicine_id,
+                    m.medicine_name,
+                    m.medicine_price,
+                    m.medicine_quantity,
+                    m.medicine_description || ''
+                );
+            });
+
+            // Delete button
+            const deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.className = 'btn btn-sm btn-danger';
+
+            const deleteIcon = document.createElement('i');
+            deleteIcon.className = 'bi bi-trash';
+            deleteButton.appendChild(deleteIcon);
+
+            deleteButton.addEventListener('click', () => {
+                deleteMedicine(m.medicine_id);
+            });
+
+            actionCell.appendChild(editButton);
+            actionCell.appendChild(deleteButton);
+            row.appendChild(actionCell);
+
             tbody.appendChild(row);
         });
 
-        // Update medicines dashboard statistics
         updateMedicinesDashboardStats(d.medicines);
     })
     .catch(error => {
         console.error('Error loading medicines:', error);
+
         const tbody = document.querySelector('tbody');
-        if (tbody) tbody.innerHTML = "<tr><td colspan='6' class='text-center text-danger'>Error loading data</td></tr>";
-        updateMedicinesDashboardStats([]); // Update dashboard with empty data on error
+
+        if (tbody) {
+            showMedicineMessage(
+                tbody,
+                'Error loading data',
+                true
+            );
+        }
+
+        updateMedicinesDashboardStats([]);
     });
 }
 
-// Add this function to calculate and update medicines dashboard statistics
+// Update medicines dashboard statistics
 function updateMedicinesDashboardStats(medicines) {
     if (!medicines || medicines.length === 0) {
-        // Set all stats to zero if no medicines
         document.getElementById('totalMedicines').textContent = '0';
         document.getElementById('lowStockItems').textContent = '0';
         document.getElementById('outOfStock').textContent = '0';
@@ -75,38 +151,46 @@ function updateMedicinesDashboardStats(medicines) {
         return;
     }
 
-    // Calculate statistics
     const totalMedicines = medicines.length;
-    
-    // Count low stock items (quantity less than 10 but greater than 0)
+
     const lowStockItems = medicines.filter(m => {
         const qty = parseInt(m.medicine_quantity);
         return qty > 0 && qty < 10;
     }).length;
-    
-    // Count out of stock items (quantity = 0)
-    const outOfStock = medicines.filter(m => parseInt(m.medicine_quantity) === 0).length;
-    
-    // Calculate total inventory value
+
+    const outOfStock = medicines.filter(m =>
+        parseInt(m.medicine_quantity) === 0
+    ).length;
+
     const totalValue = medicines.reduce((sum, m) => {
-        return sum + (parseFloat(m.medicine_price) * parseInt(m.medicine_quantity));
+        return sum + (
+            parseFloat(m.medicine_price) *
+            parseInt(m.medicine_quantity)
+        );
     }, 0);
 
-    // Update the dashboard elements
     document.getElementById('totalMedicines').textContent = totalMedicines;
     document.getElementById('lowStockItems').textContent = lowStockItems;
     document.getElementById('outOfStock').textContent = outOfStock;
-    document.getElementById('totalValue').textContent = '$' + totalValue.toFixed(2);
+    document.getElementById('totalValue').textContent =
+        '$' + totalValue.toFixed(2);
 }
 
+// Add Medicine Modal
 function openAddModal() {
     editMode = false;
     currentMedicineId = '';
+
     document.getElementById('medicineForm').reset();
-    document.getElementById('medicineModalLabel').textContent = 'Add New Medicine';
-    new bootstrap.Modal(document.getElementById('medicineModal')).show();
+    document.getElementById('medicineModalLabel').textContent =
+        'Add New Medicine';
+
+    new bootstrap.Modal(
+        document.getElementById('medicineModal')
+    ).show();
 }
 
+// Edit Medicine Modal
 function openEditModal(id, name, price, qty, desc) {
     editMode = true;
     currentMedicineId = id;
@@ -116,12 +200,18 @@ function openEditModal(id, name, price, qty, desc) {
     document.getElementById('medicine_quantity').value = qty;
     document.getElementById('medicine_description').value = desc;
 
-    document.getElementById('medicineModalLabel').textContent = 'Edit Medicine';
-    new bootstrap.Modal(document.getElementById('medicineModal')).show();
+    document.getElementById('medicineModalLabel').textContent =
+        'Edit Medicine';
+
+    new bootstrap.Modal(
+        document.getElementById('medicineModal')
+    ).show();
 }
 
+// Save Medicine
 function saveMedicine() {
     const form = document.getElementById('medicineForm');
+
     if (!validateForm(form)) return;
 
     const data = {
@@ -133,7 +223,7 @@ function saveMedicine() {
         description: form.medicine_description.value
     };
 
-    fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+    fetch('/Group-Project-CW2---Secure-Application-Development-and-Implementation/app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -142,43 +232,69 @@ function saveMedicine() {
     .then(d => {
         if (d.success) {
             alert(d.msg);
-            bootstrap.Modal.getInstance(document.getElementById('medicineModal')).hide();
-            loadMedicines(); // This will also update the dashboard
+
+            bootstrap.Modal.getInstance(
+                document.getElementById('medicineModal')
+            ).hide();
+
+            loadMedicines();
         } else {
             alert('Error: ' + d.msg);
         }
     })
-    .catch(error => console.error('Error saving medicine:', error));
+    .catch(error => {
+        console.error('Error saving medicine:', error);
+    });
 }
 
+// Delete Medicine
 function deleteMedicine(id) {
-    if (!confirm('Are you sure you want to delete this medicine?')) return;
+    if (!confirm('Are you sure you want to delete this medicine?')) {
+        return;
+    }
 
-    fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+    fetch('/Group-Project-CW2---Secure-Application-Development-and-Implementation/app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete_medicine', id: id })
+        body: JSON.stringify({
+            action: 'delete_medicine',
+            id: id
+        })
     })
     .then(r => r.json())
     .then(d => {
         if (d.success) {
             alert(d.msg);
-            loadMedicines(); // This will also update the dashboard
+            loadMedicines();
         } else {
             alert('Error: ' + d.msg);
         }
     })
-    .catch(error => console.error('Error deleting medicine:', error));
+    .catch(error => {
+        console.error('Error deleting medicine:', error);
+    });
 }
 
+// Frontend Form Validation
 function validateForm(form) {
     const name = form.medicine_name.value.trim();
     const price = parseFloat(form.medicine_price.value);
     const quantity = parseInt(form.medicine_quantity.value);
 
-    if (name === '') { alert('Name cannot be empty'); return false; }
-    if (isNaN(price) || price <= 0) { alert('Price must be a positive number'); return false; }
-    if (isNaN(quantity) || quantity < 0) { alert('Quantity cannot be negative'); return false; }
+    if (name === '') {
+        alert('Name cannot be empty');
+        return false;
+    }
+
+    if (isNaN(price) || price <= 0) {
+        alert('Price must be a positive number');
+        return false;
+    }
+
+    if (isNaN(quantity) || quantity < 0) {
+        alert('Quantity cannot be negative');
+        return false;
+    }
 
     return true;
 }
