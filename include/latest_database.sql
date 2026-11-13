@@ -451,6 +451,65 @@ ALTER TABLE `staff`
 --
 ALTER TABLE `user_approval`
   ADD CONSTRAINT `user_approval_ibfk_1` FOREIGN KEY (`approver_id`) REFERENCES `super_admin` (`super_admin_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `security_audit_logs`
+--
+
+CREATE TABLE IF NOT EXISTS `security_audit_logs` (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `actor_user_id` varchar(64) DEFAULT NULL,
+  `actor_role` varchar(50) NOT NULL,
+  `action` varchar(100) NOT NULL,
+  `category` varchar(50) NOT NULL,
+  `target_type` varchar(50) DEFAULT NULL,
+  `target_id` varchar(100) DEFAULT NULL,
+  `status` varchar(20) NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` varchar(512) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_actor` (`actor_user_id`),
+  KEY `idx_action` (`action`),
+  KEY `idx_category` (`category`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `login_security_attempts`
+--
+
+CREATE TABLE IF NOT EXISTS `login_security_attempts` (
+  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `account_key` char(64) NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `attempted_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_account_ip_time` (`account_key`,`ip_address`,`attempted_at`),
+  KEY `idx_ip_time` (`ip_address`,`attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `login_security_blocks`
+--
+
+CREATE TABLE IF NOT EXISTS `login_security_blocks` (
+  `account_key` char(64) NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `blocked_until` datetime NOT NULL,
+  `reason` varchar(100) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`account_key`,`ip_address`),
+  KEY `idx_blocked_until` (`blocked_until`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
