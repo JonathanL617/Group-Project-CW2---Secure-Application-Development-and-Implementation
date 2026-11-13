@@ -44,19 +44,59 @@ switch ($action) {
         echo json_encode(['success' => true, 'medicines' => $medicines]);
         break;
         
-    case 'createPrescription':
-        $patientId = $input['patient_id'] ?? '';
-        $staffId = $input['staff_id'] ?? $loggedInUser; // Use provided staff_id or fallback to session
-        $medicines = $input['medicines'] ?? [];
+case 'createPrescription':
+    $patientId = $input['patient_id'] ?? '';
+    $staffId = $input['staff_id'] ?? $loggedInUser;
+    $medicines = $input['medicines'] ?? [];
 
-        if (empty($patientId) || empty($medicines)) {
-            echo json_encode(['success' => false, 'msg' => 'Missing required fields']);
+    // Validate patient ID and medicine list
+    if (!is_string($patientId) ||
+        trim($patientId) === '' ||
+        !is_array($medicines) ||
+        count($medicines) === 0) {
+
+        echo json_encode([
+            'success' => false,
+            'msg' => 'Invalid patient or medicine information'
+        ]);
+        break;
+    }
+
+    // Server-side medicine quantity validation
+    $validMedicines = true;
+
+    foreach ($medicines as $med) {
+        if (!is_array($med) ||
+            !isset($med['id'], $med['qty']) ||
+            !is_string($med['id']) ||
+            trim($med['id']) === '' ||
+            filter_var(
+                $med['qty'],
+                FILTER_VALIDATE_INT,
+                ['options' => ['min_range' => 1]]
+            ) === false) {
+
+            $validMedicines = false;
             break;
         }
+    }
 
-        $res = $model->createPrescription($patientId, $staffId, $medicines);
-        echo json_encode($res);
+    if (!$validMedicines) {
+        echo json_encode([
+            'success' => false,
+            'msg' => 'Medicine quantity must be a positive integer'
+        ]);
         break;
+    }
+
+    $res = $model->createPrescription(
+        $patientId,
+        $staffId,
+        $medicines
+    );
+
+    echo json_encode($res);
+    break;
         
     case 'getDashboardStats':
         $stats = $model->getDashboardStats();

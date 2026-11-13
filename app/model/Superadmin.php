@@ -49,53 +49,115 @@
             $result = $this->conn->query($sql);
             return $result->fetch_all(MYSQLI_ASSOC);
         }
+  
+public function createAdmin(array $data): array {
 
-        public function createAdmin(array $data): array {
-            $adminId  = trim($data['admin_id'] ?? '');
-            $username = trim($data['username'] ?? '');
-            $email    = trim($data['email'] ?? '');
-            $dob      = $data['dob'] ?? '';
-            $password = $data['password'] ?? '';
-            $regBy    = $data['registered_by'] ?? '';
+    // Validate required input fields and data types
+    $requiredFields = [
+        'admin_id',
+        'username',
+        'email',
+        'dob',
+        'password'
+    ];
 
-            if (empty($adminId) || empty($username) || empty($email) || empty($dob) || empty($password)) {
-                return ['success' => false, 'message' => 'All fields are required'];
-            }
-
-            if (empty($regBy)) {
-                return ['success' => false, 'message' => 'Registered by field is required. Please log out and log back in.'];
-            }
-
-            //duplicate check
-            $chk = $this->conn->prepare(
-                "SELECT admin_id FROM admin WHERE admin_id = ? OR admin_username = ? OR admin_email = ?"
-            );
-            $chk->bind_param('sss', $adminId, $username, $email);
-            $chk->execute();
-            if ($chk->get_result()->num_rows > 0) {
-                $chk->close();
-                return ['success' => false, 'message' => 'Admin ID, username or email already exists'];
-            }
-            $chk->close();
-
-            
-            $hash = password_hash($password, PASSWORD_ARGON2I);
-
-            $ins = $this->conn->prepare("
-                INSERT INTO admin 
-                    (admin_id, admin_username, admin_email, admin_dob, admin_password, admin_login_status, registered_by)
-                VALUES 
-                    (?, ?, ?, ?, ?, 'active', ?)
-            ");
-            $ins->bind_param('ssssss', $adminId, $username, $email, $dob, $hash, $regBy);
-            $ok = $ins->execute();
-            $ins->close();
+    foreach ($requiredFields as $field) {
+        if (!isset($data[$field]) ||
+            !is_string($data[$field]) ||
+            trim($data[$field]) === '') {
 
             return [
-                'success' => $ok,
-                'message' => $ok ? 'Admin created' : 'Failed to create admin'
+                'success' => false,
+                'message' => 'All fields are required'
             ];
         }
+    }
+
+    // Validate registered_by
+    if (!isset($data['registered_by']) ||
+        !is_string($data['registered_by']) ||
+        trim($data['registered_by']) === '') {
+
+        return [
+            'success' => false,
+            'message' => 'Registered by field is required. Please log out and log back in.'
+        ];
+    }
+
+    $adminId  = trim($data['admin_id']);
+    $username = trim($data['username']);
+    $email    = trim($data['email']);
+    $dob      = $data['dob'];
+    $password = $data['password'];
+    $regBy    = trim($data['registered_by']);
+
+    // Server-side email validation
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return [
+            'success' => false,
+            'message' => 'Invalid email address'
+        ];
+    }
+
+    // Check duplicate Admin ID, username or email
+    $chk = $this->conn->prepare(
+        "SELECT admin_id FROM admin
+         WHERE admin_id = ?
+         OR admin_username = ?
+         OR admin_email = ?"
+    );
+
+    $chk->bind_param('sss', $adminId, $username, $email);
+    $chk->execute();
+
+    if ($chk->get_result()->num_rows > 0) {
+        $chk->close();
+
+        return [
+            'success' => false,
+            'message' => 'Admin ID, username or email already exists'
+        ];
+    }
+
+    $chk->close();
+
+    // Hash password
+    $hash = password_hash($password, PASSWORD_ARGON2I);
+
+    // Insert new admin
+    $ins = $this->conn->prepare("
+        INSERT INTO admin
+            (
+                admin_id,
+                admin_username,
+                admin_email,
+                admin_dob,
+                admin_password,
+                admin_login_status,
+                registered_by
+            )
+        VALUES
+            (?, ?, ?, ?, ?, 'active', ?)
+    ");
+
+    $ins->bind_param(
+        'ssssss',
+        $adminId,
+        $username,
+        $email,
+        $dob,
+        $hash,
+        $regBy
+    );
+
+    $ok = $ins->execute();
+    $ins->close();
+
+    return [
+        'success' => $ok,
+        'message' => $ok ? 'Admin created' : 'Failed to create admin'
+    ];
+}
 
         public function deleteAdmin($adminId){
             $stmt = $this->conn->prepare("DELETE FROM admin WHERE admin_id = ?");
