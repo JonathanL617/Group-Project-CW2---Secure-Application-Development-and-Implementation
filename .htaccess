@@ -1,0 +1,32 @@
+# ==============================================================
+# Security Hardening Configuration (.htaccess)
+# ==============================================================
+
+# 1. Disable Directory Browsing / Indexes across all directories
+Options -Indexes
+
+# 2. Block direct access to hidden files (.git, .gitignore, .env, etc.)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# 3. Block direct access to sensitive database dumps, logs, and documentation
+<FilesMatch "(?i)\.(sql|log|md|bak|inc)$">
+    Require all denied
+</FilesMatch>
+
+# 4. Block access to legacy/unprotected prototype scripts in include directory
+<FilesMatch "^FC_">
+    Require all denied
+</FilesMatch>
+
+# 5. Fallback Web Server Defensive Security Headers (if mod_headers is loaded)
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    Header always set Content-Security-Policy "default-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self';"
+    Header unset X-Powered-By
+    Header always unset X-Powered-By
+</IfModule>
