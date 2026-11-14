@@ -52,6 +52,21 @@ if (in_array($action, ['approve', 'reject', 'done'])) {
     exit;
 }
 
+if ($action === 'list_orders') {
+    $filter = $input['filter'] ?? '';
+    $search = $input['search'] ?? '';
+    $orders = $model->getAllOrders($search, $filter);
+    echo json_encode(['success' => true, 'orders' => $orders]);
+    exit;
+}
+
+if ($action === 'list_medicines') {
+    $search = trim($input['search'] ?? '');
+    $medicines = $search !== '' ? $model->searchMedicines($search) : $model->getAllMedicines();
+    echo json_encode(['success' => true, 'medicines' => $medicines]);
+    exit;
+}
+
 if ($action === 'add_medicine') {
     $name = trim($input['name'] ?? '');
     $price = $input['price'] ?? null;
@@ -84,6 +99,50 @@ if ($action === 'add_medicine') {
     }
 
     $res = $model->addMedicine($name, (float)$price, (int)$quantity, $description);
+    echo json_encode($res);
+    exit;
+}
+
+if ($action === 'update_medicine') {
+    $id = trim($input['id'] ?? '');
+    $name = trim($input['name'] ?? '');
+    $price = $input['price'] ?? null;
+    $quantity = $input['quantity'] ?? null;
+    $description = trim($input['description'] ?? '');
+
+    if ($id === '') {
+        echo json_encode([
+            'success' => false,
+            'msg' => 'Medicine ID is required'
+        ]);
+        exit;
+    }
+
+    if ($name === '') {
+        echo json_encode([
+            'success' => false,
+            'msg' => 'Medicine name cannot be empty'
+        ]);
+        exit;
+    }
+
+    if (!is_numeric($price) || (float)$price <= 0) {
+        echo json_encode([
+            'success' => false,
+            'msg' => 'Medicine price must be greater than zero'
+        ]);
+        exit;
+    }
+
+    if (filter_var($quantity, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) === false) {
+        echo json_encode([
+            'success' => false,
+            'msg' => 'Medicine quantity must be a non-negative integer'
+        ]);
+        exit;
+    }
+
+    $res = $model->updateMedicine($id, $name, (float)$price, (int)$quantity, $description);
     echo json_encode($res);
     exit;
 }

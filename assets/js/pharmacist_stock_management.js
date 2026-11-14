@@ -40,7 +40,7 @@ function showMedicineMessage(tbody, message, isError = false) {
 
 // Load medicines
 function loadMedicines(search = '') {
-    fetch('/Group-Project-CW2---Secure-Application-Development-and-Implementation/app/controller/PharmacistController.php', {
+    fetch('../../app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,7 +223,7 @@ function saveMedicine() {
         description: form.medicine_description.value
     };
 
-    fetch('/Group-Project-CW2---Secure-Application-Development-and-Implementation/app/controller/PharmacistController.php', {
+    fetch('../../app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -253,7 +253,7 @@ function deleteMedicine(id) {
         return;
     }
 
-    fetch('/Group-Project-CW2---Secure-Application-Development-and-Implementation/app/controller/PharmacistController.php', {
+    fetch('../../app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
