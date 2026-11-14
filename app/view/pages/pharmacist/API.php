@@ -9,6 +9,7 @@
     <!-- Your exact search box -->
     <div class="search-box">
         <form id="drugForm">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
             <div class="row">
                 <div class="col-md-8">
                     <label for="drugName" class="form-label">Drug Name</label>

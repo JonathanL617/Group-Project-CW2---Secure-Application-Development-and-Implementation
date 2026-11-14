@@ -68,6 +68,7 @@
     <div class="modal fade" id="medicineModal" tabindex="-1">
         <div class="modal-dialog">
             <form id="medicineForm">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="medicineModalLabel">Add Medicine</h5>

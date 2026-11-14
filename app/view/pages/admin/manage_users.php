@@ -125,6 +125,7 @@
                 </div>
                 <div class="modal-body">
                     <form id="editStaffForm">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
                         <div class="mb-3">
                             <label for="edit_staff_id" class="form-label">Staff ID</label>
                             <input type="text" class="form-control" id="edit_staff_id" readonly>
@@ -191,6 +192,7 @@
                 </div>
                 <div class="modal-body">
                     <form id="editPatientForm">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
                         <div class="mb-3">
                             <label for="edit_patient_id" class="form-label">Patient ID</label>
                             <input type="text" class="form-control" id="edit_patient_id" readonly>

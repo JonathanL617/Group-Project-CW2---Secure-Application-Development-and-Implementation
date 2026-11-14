@@ -102,6 +102,7 @@
             </div>
             <div class="modal-body">
                 <form id="createAdminForm">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
                     <div class="mb-3">
                         <label class="form-label" for="username">Username</label>
                         <input type="text" class="form-control" name="username" required>

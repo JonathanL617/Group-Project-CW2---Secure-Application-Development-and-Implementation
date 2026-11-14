@@ -75,6 +75,7 @@
                 </div>
                 <div class="modal-body">
                     <form id="patientRegisterForm">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
                         <div class="mb-3">
                             <label for="patient_id" class="form-label">Patient ID</label>
                             <input type="text" class="form-control" id="patient_id" readonly>

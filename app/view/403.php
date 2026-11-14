@@ -10,7 +10,7 @@ http_response_code(403);
 
     <title>403 - Access Denied</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" crossorigin="anonymous">
 
     <style>
         * {

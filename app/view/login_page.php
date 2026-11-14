@@ -89,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
                 <?php endif; ?>
                 
                 <form id="login-form" action="" method="POST" name="login">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
                     <input type="email" name="email" placeholder="Email" required value="<?php echo isset($_COOKIE['user_login']) ? htmlspecialchars($_COOKIE['user_login']) : ''; ?>">
                     
                     <input type="password" name="password" placeholder="Password" required>
@@ -119,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
                 <?php endif; ?>
                 
                 <form action="" method="POST">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
                     <input type="email" name="reset_email" placeholder="Enter your email" required>
                     
                     <input type="password" name="new_password" placeholder="New Password (min 8 characters)" required minlength="8">

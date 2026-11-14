@@ -185,8 +185,13 @@ class AuthController {
                 setcookie(
                     'user_login',
                     $email,
-                    time() + (86400 * 30),
-                    "/"
+                    [
+                        'expires' => time() + (86400 * 30),
+                        'path' => '/',
+                        'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+                        'httponly' => true,
+                        'samesite' => 'Lax'
+                    ]
                 );
 
             } else {
@@ -194,8 +199,13 @@ class AuthController {
                 setcookie(
                     'user_login',
                     '',
-                    time() - 3600,
-                    "/"
+                    [
+                        'expires' => time() - 3600,
+                        'path' => '/',
+                        'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+                        'httponly' => true,
+                        'samesite' => 'Lax'
+                    ]
                 );
             }
 
@@ -327,11 +337,14 @@ class AuthController {
             setcookie(
                 session_name(),
                 '',
-                time() - 42000,
-                $params['path'],
-                $params['domain'],
-                $params['secure'],
-                $params['httponly']
+                [
+                    'expires' => time() - 42000,
+                    'path' => $params['path'] ?? '/',
+                    'domain' => $params['domain'] ?? '',
+                    'secure' => !empty($params['secure']),
+                    'httponly' => true,
+                    'samesite' => $params['samesite'] ?? 'Lax'
+                ]
             );
         }
 

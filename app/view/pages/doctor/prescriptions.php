@@ -69,6 +69,7 @@
     <div class="modal fade" id="createPrescriptionModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <form id="createPrescriptionForm">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Create New Prescription</h5>

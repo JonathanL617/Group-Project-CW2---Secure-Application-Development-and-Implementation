@@ -1,13 +1,13 @@
 <?php
-    session_start();
-    require_once 'app/config/config.php';
+    require_once __DIR__ . '/app/config/session_config.php';
+    require_once __DIR__ . '/app/config/config.php';
 
-    //if the session does not contain the user_id, redirect to login page
-    if(!isset($_SESSION['user_id'])){
-        header('Location: app/view/login_page.php');
+    // If the session does not contain user_id, redirect to login page
+    if (!isset($_SESSION['user_id'])) {
+        header('Location: ' . BASE_URL . '/app/view/login_page.php');
         exit();
     }
 
-    header('Location: app/view/dashboard.php');
+    header('Location: ' . BASE_URL . '/app/view/dashboard.php');
     exit();
 ?>

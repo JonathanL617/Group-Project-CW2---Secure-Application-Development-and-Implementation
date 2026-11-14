@@ -60,11 +60,12 @@ if (!isset($validPages[$userRole]) || !in_array($page, $validPages[$userRole], t
 <!DOCTYPE html>
 <html>
     <head>
+        <meta name="csrf-token" content="<?php echo htmlspecialchars(getCsrfToken()); ?>">
         <!-- bootstrap -->
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css" crossorigin="anonymous">
         
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet" crossorigin="anonymous">
 
         <!-- css -->
         <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/dashboard.css">
@@ -162,6 +163,7 @@ if (!isset($validPages[$userRole]) || !in_array($page, $validPages[$userRole], t
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <form method="POST" action="<?php echo BASE_URL; ?>/app/controller/AuthController.php">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
                             <input type="hidden" name="logout" value="1">
                             <button type="submit" class="btn btn-danger">Yes, Logout</button>
                         </form>

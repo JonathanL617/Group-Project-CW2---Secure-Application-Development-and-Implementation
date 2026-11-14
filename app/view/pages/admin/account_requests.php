@@ -27,6 +27,7 @@
     <h2>Staff Account Request Form</h2>
 
     <form id="staffRequestForm" action="/submit-staff-request" method="POST">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getCsrfToken()); ?>">
         <div class="mb-3">
             <label for="staff_id" class="form-label">Staff ID <span class="text-danger">*</span></label>
             <input type="text" class="form-control" id="staff_id" name="staff_id" readonly placeholder="Auto-generated (e.g., D001 or P001)" required>
