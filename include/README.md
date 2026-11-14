@@ -64,7 +64,6 @@ The project covers six main security areas:
 - Configured the temporary restrictions to last for 15 minutes.
 - Developed an analytics dashboard using PHP, MySQL and Chart.js, with role-based access permissions.
 
-*Note: The audit logging, login monitoring and related database components were developed and tested separately using a local Q5 test database. The dashboard and role-based permission mechanism were also developed, but separate Super Admin and Admin dashboard views and full integration with the original PMS authentication workflow are still required.*
 
 **6. Security and Vulnerability Testing**
 
