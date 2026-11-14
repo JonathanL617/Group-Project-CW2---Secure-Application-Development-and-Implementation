@@ -3,7 +3,7 @@
 loggedInUser = document.body.dataset.staffId;
 console.log('Staff ID from data attribute:', loggedInUser); // Add this line
 function loadOrders(filter = '') {
-    fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+    fetch('../../app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'list_orders', filter })
@@ -118,7 +118,7 @@ if (confirmBtn) {
         let comment = document.getElementById("confirmComment").value;
         
 
-        fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+        fetch('../../app/controller/PharmacistController.php', {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: confirmMode, order_id: id, approver_id: approver, comment: comment })
@@ -140,7 +140,7 @@ function viewOrder(id) {
     document.getElementById("viewModalBody").innerHTML = "Loading...";
     new bootstrap.Modal(document.getElementById("viewModal")).show();
 
-    fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+    fetch('../../app/controller/PharmacistController.php', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "get_details", order_id: id })
@@ -192,7 +192,7 @@ if (searchInput) {
         const searchTerm = e.target.value.trim();
         if (searchTerm) {
             // Send search request
-            fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+            fetch('../../app/controller/PharmacistController.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'list_orders', search: searchTerm })

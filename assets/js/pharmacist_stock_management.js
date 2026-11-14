@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadMedicines(search = '') {
-    fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+    fetch('../../app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'list_medicines', search: search })
@@ -133,7 +133,7 @@ function saveMedicine() {
         description: form.medicine_description.value
     };
 
-    fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+    fetch('../../app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -154,7 +154,7 @@ function saveMedicine() {
 function deleteMedicine(id) {
     if (!confirm('Are you sure you want to delete this medicine?')) return;
 
-    fetch('/WebDev-Pharmacist-Management-System/app/controller/PharmacistController.php', {
+    fetch('../../app/controller/PharmacistController.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete_medicine', id: id })
